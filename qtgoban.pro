@@ -10,3 +10,4 @@ SOURCES += sgftree.cpp \
     gametree.cpp
 OTHER_FILES += output.sgf \
     input.sgf
+DEFINES += DEBUG

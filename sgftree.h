@@ -16,6 +16,8 @@ class SgfTree
 public:
 	void addChild(SgfTree *child);
 	void removeChild(SgfTree *child);
+	inline SgfTree* parent();
+	void setParent(SgfTree* newParent);
 	QVector <SgfTree*> & children();
 	SgfTree* child(int i);
 

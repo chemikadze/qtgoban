@@ -134,6 +134,18 @@ void SgfVariant::deleteData()
 {
 	switch (m_type)
 	{
+	case Number:
+		delete (int*)m_data;
+		break;
+	case Real:
+		delete (double*)m_data;
+		break;
+	case Double:
+		delete (qint8*)m_data;
+		break;
+	case Color:
+		delete (StoneColor*)m_data;
+		break;
 	case SimpleText:
 	case Text:
 		delete (QString*)m_data;

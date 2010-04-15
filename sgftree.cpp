@@ -2,7 +2,7 @@
 
 SgfTree::SgfTree(SgfTree *p/* = NULL*/) : m_parent(p)
 {
-	if ( NULL != p )
+	if ( p )
 		m_moveIndex = m_parent->moveIndex() + 1;
 	else
 		m_moveIndex = 0;
@@ -18,6 +18,17 @@ SgfTree::~SgfTree()
 void SgfTree::addChild(SgfTree *child)
 {
 	m_children.push_back(child);
+	child->setParent(this);
+}
+
+void SgfTree::setParent(SgfTree *newParent)
+{
+	m_parent = newParent;
+}
+
+SgfTree* SgfTree::parent()
+{
+	return m_parent;
 }
 
 void SgfTree::removeChild(SgfTree *child)

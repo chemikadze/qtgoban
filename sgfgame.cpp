@@ -78,10 +78,6 @@ bool SgfGame::moveIsCorrect(qint8 col, qint8 row)
 		return false;
 }
 
-/*
-  TODO: SEGFAULT on (...)(...)
-  */
-
 QFile::FileError SgfGame::loadBufferFromFile(const QString& filename)
 {
 	m_io->setFileName(filename);
@@ -104,13 +100,11 @@ bool SgfGame::readGameFromBuffer()
 
 	delete m_tree;
 	m_tree = readNodeFromBuffer();
-	if (m_error == ENo)
+	if (m_tree)
 		return true;
 	else
 	{
 		qWarning("SgfGame: can not load game from buffer with error %d (%s)", m_error, errorToString(m_error).toLatin1().data());
-		if (m_error == EBadSyntax)
-			delete m_tree;
 		m_tree = new SgfTree();
 		return false;
 	}
@@ -175,27 +169,38 @@ SgfTree* SgfGame::readNodeFromBuffer(SgfTree *parent /*=NULL*/)
 {
 	// add static const QChar for all needed charters
 	// ( ; ) [ ] \ A Z
-	static const QChar cOB('('), cTZ(';'), cCB(')'), cOSB('['), cCSB(']'), cSLASH('\\'),
-					   cA('A'), cZ('Z');
+	static const QChar cOB('('), cTZ(';'), cCB(')'), cOSB('['), cCSB(']'), cSLASH('\\'), cA('A'), cZ('Z');
 	static QString::iterator pos;
+	SgfTree *node = NULL, *ret = NULL;
+	QString attrName, data;
+
 	if (parent == NULL)
 		pos = m_encodedBuffer.begin();
 	// skip this tree bracket
 	if (*(pos) != cOB || *(++pos) != cTZ)
 	{
+		emitError(EBadSyntax);
 		return NULL;
 	}
-	SgfTree *node = NULL, *ret = NULL;
-	QString attrName, data;
 	attrName.reserve(3);
 	data.reserve(10);
+
 	// read nodes in cycle
 	for (; pos != m_encodedBuffer.end() && *pos != cCB; )
 	{
 		// adding subtree
 		if (*pos == cOB)
 		{
-			node->addChild( readNodeFromBuffer(node) );
+			SgfTree* newChild = readNodeFromBuffer(node);
+			if (newChild)
+			{
+				node->addChild( newChild );
+			}
+			else
+			{
+				delete ret;
+				return NULL;
+			}
 			continue;
 		}
 		// if REAL start of node
@@ -205,9 +210,9 @@ SgfTree* SgfGame::readNodeFromBuffer(SgfTree *parent /*=NULL*/)
 			// change current node
 			if (node != NULL)
 			{
-				parent = node;
-				node = new SgfTree(parent);
-				parent->addChild(node);
+				SgfTree* newNode = new SgfTree(node);
+				node->addChild(newNode);
+				node = newNode;
 			}
 			else
 				ret = node = new SgfTree(parent);
@@ -218,12 +223,14 @@ SgfTree* SgfGame::readNodeFromBuffer(SgfTree *parent /*=NULL*/)
 			if (*pos<cA || *pos>cZ )
 			{
 				if (! (*pos).isSpace())
+				{
 					emitError(EBadSyntax);
+					delete ret;
+					return NULL;
+				}
 				// skip it
 				++pos;
 				continue;
-				// strict
-				//return NULL;
 			}
 		}
 		// read node
@@ -280,7 +287,11 @@ SgfTree* SgfGame::readNodeFromBuffer(SgfTree *parent /*=NULL*/)
 			else
 			{
 				if (! (*pos).isSpace())
+				{
 					emitError(EBadSyntax);
+					delete ret;
+					return NULL;
+				}
 				++pos;
 			}
 		}
@@ -464,7 +475,9 @@ SgfVariant SgfGame::strToAttrValue(const QString& attr, const QString& data)
 		}
 		else
 		{
+#ifdef DEBUG
 			qDebug("sgfgame.cpp:%d Oops", __LINE__);
+#endif
 			ok = false;
 		}
 		break;

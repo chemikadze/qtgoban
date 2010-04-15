@@ -14,6 +14,8 @@ GameTree::GameTree(QWidget *parent, SgfGame *gm) : QAbstractScrollArea(parent)
 	setGame(gm);
 	verticalScrollBar()->setMinimum(0);
 	horizontalScrollBar()->setMinimum(0);
+	m_viewportHeight = ceil(viewport()->height() / m_nodeHeight);
+	m_viewportWidth = ceil(viewport()->width() / m_nodeWidth);
 }
 
 void GameTree::resizeEvent(QResizeEvent *)
@@ -28,7 +30,9 @@ void GameTree::resizeEvent(QResizeEvent *)
 
 void GameTree::paintEvent(QPaintEvent *)
 {
+#ifdef DEBUG
 	QTime t; t.start();
+#endif
 	vpPainter = new QPainter(viewport());
 	vpPainter->setBrush(Qt::white);
 
@@ -80,7 +84,9 @@ void GameTree::paintEvent(QPaintEvent *)
 
 	vpPainter->end();
 	delete vpPainter;
+#ifdef DEBUG
 	qDebug("Render time: %d", t.elapsed());
+#endif
 }
 
 void GameTree::scroll()
@@ -90,7 +96,9 @@ void GameTree::scroll()
 
 void GameTree::setGame(SgfGame *gm)
 {
+#ifdef DEBUG
 	QTime t; t.start();
+#endif
 	m_game = gm;
 	if (gm)
 	{
@@ -112,7 +120,9 @@ void GameTree::setGame(SgfGame *gm)
 	}
 	m_currCol = m_currRow = 0;
 	m_currNode = m_tree;
+#ifdef DEBUG
 	qDebug("Game open time: %d", t.elapsed());
+#endif
 }
 
 long GameTree::scanNode(Node *node)
@@ -162,7 +172,9 @@ void GameTree::mousePressEvent(QMouseEvent *e)
 
 	if ( col < m_layers.count() && m_layers[col].contains(row) )
 	{
+#ifdef DEBUG
 		qDebug("Selected: %ld %ld", col, row);
+#endif
 		m_currCol = col;
 		m_currRow = row;
 		SgfTree* oldNode = m_currNode->sgfNode;

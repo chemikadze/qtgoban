@@ -27,6 +27,7 @@ class SgfGame : public QObject
 	Q_OBJECT
 
 public:
+	// all except EBadSyntax are not fatal
 	enum Error { ENo, EBadAttrName, EBadSyntax, EWrongGM, EUnknownEncoding };
 
 

@@ -8,7 +8,9 @@
 #include <cstdlib>
 #include "common.h"
 
+#ifdef DEBUG
 #include <QtCore/QDebug>
+#endif
 
 class SgfVariant
 {
