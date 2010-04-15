@@ -1,0 +1,5 @@
+(;B[tt]C[Black plays elsewhere.];W[qe]
+C[Black continues locally with 'a' or 'b'. Black may also play
+elsewhere ('c').]
+LB[dp:c][nc:b][nd:a]
+(;B[nd];W[ne];B[nc];W[mf];B[le];W[me];B[lc];W[ld];B[kc]))
