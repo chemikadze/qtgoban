@@ -41,7 +41,7 @@ protected:
 	QTextCodec *codec;
 	bool writeNode(SgfTree *node);
 	Error m_error;
-	Turn m_turn;
+	StoneColor m_turn;
 	static const QMap <Error,QString> m_errorStrings;
 	static const QMap <QString, SgfVariant::Type> m_typeMap;
 	static QMap <QString, SgfVariant::Type> createSgfTypeMap();
@@ -64,6 +64,7 @@ signals:
 
 public:
 	inline StoneColor stone(char i, char j);
+	inline const QVector < QVector<StoneColor> >& board();
   /*inline*/ SgfTree *tree();
 	inline SgfTree *currentMove();
 	inline const QString& encoding()const;
@@ -71,9 +72,9 @@ public:
 	void resize(QSize s);
 	void resize(qint8 col, qint8 row = -1);
 	void setEncoding(QString encoding);
-	bool makeMove(qint8 col, qint8 row); // realization
+	bool makeMove(qint8 col, qint8 row, StoneColor color=Void); // realization
 	bool moveIsCorrect(qint8 col, qint8 row);
-	inline Turn turn();
+	inline StoneColor turn();
 
 	QFile::FileError loadBufferFromFile(const QString& filename);
 	QString readEncodingFromBuffer();

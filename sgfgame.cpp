@@ -30,6 +30,11 @@ StoneColor SgfGame::stone(char i, char j)
 	return m_board[i][j];
 }
 
+const QVector < QVector<StoneColor> > &  SgfGame::board()
+{
+	return m_board;
+}
+
 SgfTree* SgfGame::tree()
 {
 	return m_tree;
@@ -44,14 +49,16 @@ SgfTree* SgfGame::currentMove()
   TODO: maybe create some pointers for comments/marks/etc?
 */
 
-bool SgfGame::makeMove(qint8 col, qint8 row)
+bool SgfGame::makeMove(qint8 col, qint8 row, StoneColor color/* =Void  */)
 {
+	if (color == Void)
+		color = m_turn;
 	SgfTree* newNode = new SgfTree(m_current);
 	m_current->addChild(newNode);
 	m_current = newNode;
 	if (moveIsCorrect(col, row))
 	{
-		if (m_turn == TurnBlack)
+		if (m_turn == Black)
 			m_current->setAttribute("B", SgfVariant(col, row));
 		else
 			m_current->setAttribute("W", SgfVariant(col, row));
@@ -63,7 +70,7 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 	}
 }
 
-Turn SgfGame::turn()
+StoneColor SgfGame::turn()
 {
 	return m_turn;
 }

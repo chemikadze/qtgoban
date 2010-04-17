@@ -284,19 +284,20 @@ QString SgfVariant::toSgfRecordFormat()const
 
 SgfVariant SgfVariant::strToMove(const QString& s)
 {
+	static const QChar l_a('a'), l_z('z'), l_A('A'), l_Z('Z');
 	qint8 col, row;
 	if (s.size() == 2)
 	{
-		if (s[0] >= 'a' && s[0] <='z')
+		if (s[0] >= l_a && s[0] <=l_z)
 			col = s[0].toLatin1() - 'a';
-		else if (s[0] >= 'A' && s[0] <= 'Z')
+		else if (s[0] >= l_A && s[0] <= l_Z)
 			col = s[0].toLatin1() - 'A' + 27;
 		else
 			return SgfVariant();
 
-		if (s[1] >= 'a' && s[1] <='z')
+		if (s[1] >= l_a && s[1] <=l_z)
 			row = s[1].toLatin1() - 'a';
-		else if (s[1] >= 'A' && s[0] <= 'Z')
+		else if (s[1] >= l_A && s[0] <= l_Z)
 			row = s[1].toLatin1() - 'A' + 27;
 		else
 			return SgfVariant();

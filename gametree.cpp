@@ -156,7 +156,7 @@ long GameTree::scanNode(Node *node)
 		}
 	}
 	m_scanDepth--;
-	m_layers[m_scanDepth][node->pos]=node;
+	m_layers[m_scanDepth].insert(node->pos, node);
 
 	if (m_treeWidth <= node->pos)
 		m_treeWidth = node->pos+1;
