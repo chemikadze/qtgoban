@@ -7,5 +7,4 @@
 enum StoneColor { Void = 0x0, Black, White };
 enum Markup { MVoid = 0x0, MCircle, MCross, MSquare, MTriangle, MSelection };
 
-
 #endif // COMMON_H

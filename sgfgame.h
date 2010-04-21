@@ -21,13 +21,14 @@
 #include "common.h"
 #include "sgftree.h"
 #include "sgfvariant.h"
+#include "playerinput.h"
 
 class SgfGame : public QObject
 {
 	Q_OBJECT
 
 public:
-	// all except EBadSyntax are not fatal
+	// all except EBadSyntax and WrongGM are not fatal
 	enum Error { ENo, EBadAttrName, EBadSyntax, EWrongGM, EUnknownEncoding };
 
 
@@ -61,8 +62,14 @@ protected:
 signals:
 	void wrongValue(QString attrName, QString dataString);
 	void errorOccured(Error errorcode);
+	void newNode(SgfTree* newCurr);
+	void currentNodeChanged(SgfTree* current);
 
 public:
+	bool setCurrentMove(SgfTree* newCurr);
+	void setBlackInput(PlayerInput* aInput);
+	void setWhiteInput(PlayerInput* aInput);
+
 	inline StoneColor stone(char i, char j);
 	inline const QVector < QVector<StoneColor> >& board();
   /*inline*/ SgfTree *tree();
