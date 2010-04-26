@@ -75,7 +75,7 @@ public:
   /*inline*/ SgfTree *tree();
 	inline SgfTree *currentMove();
 	inline const QString& encoding()const;
-	inline QSize size()const;
+	inline QSize size()const { return m_size; }
 	void resize(QSize s);
 	void resize(qint8 col, qint8 row = -1);
 	void setEncoding(QString encoding);
@@ -91,7 +91,7 @@ public:
 	SgfVariant strToAttrValue(const QString& attr, const QString& data);
 	void setRootAttr(const QString& attr, const SgfVariant& data);
 
-	SgfGame(int size = 19);
+	SgfGame(QSize size = QSize(19, 19));
 	~SgfGame();
 };
 

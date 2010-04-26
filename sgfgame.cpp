@@ -3,11 +3,9 @@
 const QMap <QString, SgfVariant::Type> SgfGame::m_typeMap = SgfGame::createSgfTypeMap();
 const QMap <SgfGame::Error, QString> SgfGame::m_errorStrings = SgfGame::createErrorStringsMap();
 
-SgfGame::SgfGame(int size /*=19*/)
+SgfGame::SgfGame(QSize size /* =QSize(19, 19) */)
 {
-	m_board.resize(size);
-	for (int i=0; i<size; i++)
-		m_board[i].resize(size);
+	resize(size);
 	m_io = new QFile();
 	codec = NULL;
 	setEncoding("UTF-8");
@@ -569,16 +567,17 @@ void SgfGame::resize(qint8 col, qint8 row /*=-1*/)
 
 void SgfGame::resize(QSize s)
 {
+	m_size = s;
 	m_board.resize(s.height());
 	for (int i=0; i<s.height(); ++i)
 		m_board[i].resize(s.width());
 }
-
+/*
 QSize SgfGame::size()const
 {
 	return m_size;
 }
-
+*/
 const QString& SgfGame::encoding()const
 {
 	return m_encoding;

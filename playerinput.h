@@ -14,7 +14,7 @@ class PlayerInput : public QObject
 	Q_OBJECT
 
 signals:
-	void move(qint8 col, qint8 row);
+	void makeMove(qint8 col, qint8 row);
 
 public:
 	PlayerInput(QObject* parent = NULL);

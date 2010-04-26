@@ -8,6 +8,7 @@
 #include "sgftree.h"
 #include "sgfgame.h"
 #include "gametree.h"
+#include "board.h"
 
 int main(int argc, char** argv)
 {
@@ -33,17 +34,15 @@ int main(int argc, char** argv)
 
 	qDebug() << t.elapsed() << "Opened.";
 
-/*
-	t.start();
-	qDebug() << t.elapsed() << "Saving...";
-	g.saveToFile("output.sgf");
-	qDebug() << t.elapsed() << "Saved.";
-*/
 	GameTree tree;
 	tree.setGame(&g);
+//	tree.show();
+
+	Board board;
+	board.setSgfGame(&g);
+	board.show();
 
 	g.saveToFile("./tests/output.sgf");
 
-	tree.show();
 	return app.exec(); // while not real GUI app
 }
