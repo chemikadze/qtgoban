@@ -21,7 +21,6 @@
 #include "common.h"
 #include "sgftree.h"
 #include "sgfvariant.h"
-#include "playerinput.h"
 
 class SgfGame : public QObject
 {
@@ -67,8 +66,6 @@ signals:
 
 public:
 	bool setCurrentMove(SgfTree* newCurr);
-	void setBlackInput(PlayerInput* aInput);
-	void setWhiteInput(PlayerInput* aInput);
 
 	inline StoneColor stone(char i, char j);
 	inline const QVector < QVector<StoneColor> >& board();
@@ -79,7 +76,7 @@ public:
 	void resize(QSize s);
 	void resize(qint8 col, qint8 row = -1);
 	void setEncoding(QString encoding);
-	bool makeMove(qint8 col, qint8 row, StoneColor color=Void); // realization
+	bool makeMove(qint8 col, qint8 row, StoneColor color=StoneVoid); // realization
 	bool moveIsCorrect(qint8 col, qint8 row);
 	inline StoneColor turn();
 

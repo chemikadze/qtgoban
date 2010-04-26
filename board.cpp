@@ -100,5 +100,5 @@ void Board::mouseReleaseEvent(QMouseEvent* e)
 	x = round( (e->x() - dx) / cellsize);
 	y = round( (e->y() - dy) / cellsize);
 	qDebug("Move %d %d", x, y);
-	emit makeMove(x, y);
+	makeMove(x, y);
 }

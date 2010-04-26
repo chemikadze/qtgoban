@@ -1,6 +1,6 @@
 #include "abstractboard.h"
 
-AbstractBoard::AbstractBoard(QWidget* parent /*=NULL*/) : QWidget(parent), PlayerInput(parent)
+AbstractBoard::AbstractBoard(QWidget* parent /*=NULL*/, SgfGame* game /*=NULL*/) : QWidget(parent), PlayerInput(game)
 {
 }
 

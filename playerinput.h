@@ -1,23 +1,33 @@
 #ifndef PLAYERINPUT_H
 #define PLAYERINPUT_H
 
-#include <QtCore/QObject>
+#include "sgfgame.h"
 #include "common.h"
 
 /*
-  Only implements move() signal,
-	SgfGame knows whose turn is.
-*/
+  Provides turn control.
+  */
 
-class PlayerInput : public QObject
+class PlayerInput
 {
-	Q_OBJECT
+	SgfGame* m_game;
+	StoneColor m_turn;
+	StoneColor m_allowTo;
 
-signals:
+protected:
 	void makeMove(qint8 col, qint8 row);
 
 public:
-	PlayerInput(QObject* parent = NULL);
+	inline SgfGame* game()const;
+	inline void setGame(SgfGame*);
+
+	inline StoneColor turn()const;
+	inline void setTurn(StoneColor turn);
+
+	inline void setAllowInput(StoneColor allowTo);
+	inline StoneColor allowInput()const;
+
+	PlayerInput(SgfGame* game = NULL, StoneColor allowTo = StoneBoth);
 };
 
 #endif // PLAYERINPUT_H

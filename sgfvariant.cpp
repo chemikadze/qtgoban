@@ -29,8 +29,8 @@ SgfVariant::SgfVariant(bool t)
 SgfVariant::SgfVariant(StoneColor t)
 {
 	m_type = Color;
-	if (t < Void || t > White)
-		t = Void;
+	if (t < StoneVoid || t > StoneWhite)
+		t = StoneVoid;
 	m_data = new StoneColor(t);
 }
 
@@ -219,9 +219,9 @@ QString SgfVariant::toString()const
 	case Color:
 		switch (*(StoneColor*)m_data)
 		{
-		case Black:
+		case StoneBlack:
 			return QString("B");
-		case White:
+		case StoneWhite:
 			return QString("W");
 		default:
 			return QString();

@@ -49,14 +49,14 @@ SgfTree* SgfGame::currentMove()
 
 bool SgfGame::makeMove(qint8 col, qint8 row, StoneColor color/* =Void  */)
 {
-	if (color == Void)
+	if (color == StoneVoid)
 		color = m_turn;
 	SgfTree* newNode = new SgfTree(m_current);
 	m_current->addChild(newNode);
 	m_current = newNode;
 	if (moveIsCorrect(col, row))
 	{
-		if (m_turn == Black)
+		if (m_turn == StoneBlack)
 			m_current->setAttribute("B", SgfVariant(col, row));
 		else
 			m_current->setAttribute("W", SgfVariant(col, row));
@@ -77,7 +77,7 @@ StoneColor SgfGame::turn()
 bool SgfGame::moveIsCorrect(qint8 col, qint8 row)
 {
 	// Ko, suicide
-	if (m_board[col][row] == Void)
+	if (m_board[col][row] == StoneVoid)
 		return true;
 	else
 		return false;
@@ -410,13 +410,13 @@ SgfVariant SgfGame::strToAttrValue(const QString& attr, const QString& data)
 		if (data.size() == 1)
 		{
 			if (data[0] == 'B')
-				ret = SgfVariant(Black);
+				ret = SgfVariant(StoneBlack);
 			else if (data[0] == 'W')
-				ret = SgfVariant(White);
+				ret = SgfVariant(StoneWhite);
 			else if (data[0] == '1')
-				ret = SgfVariant(White);
+				ret = SgfVariant(StoneWhite);
 			else if (data[0] == '2')
-				ret = SgfVariant(Black);
+				ret = SgfVariant(StoneBlack);
 			else
 				ok = false;
 		}

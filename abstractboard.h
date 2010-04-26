@@ -15,7 +15,7 @@ protected:
 
 public:
 	void setSgfGame(SgfGame *game);
-	AbstractBoard(QWidget* parent = NULL);
+	AbstractBoard(QWidget* parent = NULL, SgfGame* game = NULL);
 };
 
 #endif // ABSTRACTBOARD_H
