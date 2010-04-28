@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 //	tree.show();
 
 	Board board;
-	board.setSgfGame(&g);
+	board.setGame(&g);
 	board.show();
 
 	g.saveToFile("./tests/output.sgf");

@@ -10,22 +10,18 @@
 
 class PlayerInput
 {
-	SgfGame* m_game;
-	StoneColor m_turn;
-	StoneColor m_allowTo;
 
 protected:
+	SgfGame* m_game;
 	void makeMove(qint8 col, qint8 row);
+	StoneColor m_allowTo;
 
 public:
-	inline SgfGame* game()const;
-	inline void setGame(SgfGame*);
+	inline SgfGame* game()const { return m_game; }
+	inline void setGame(SgfGame* game) { m_game = game; }
 
-	inline StoneColor turn()const;
-	inline void setTurn(StoneColor turn);
-
-	inline void setAllowInput(StoneColor allowTo);
-	inline StoneColor allowInput()const;
+	inline void setAllowInput(StoneColor allowTo) { m_allowTo = allowTo; }
+	inline StoneColor allowInput()const { return m_allowTo; }
 
 	PlayerInput(SgfGame* game = NULL, StoneColor allowTo = StoneBoth);
 };

@@ -14,21 +14,15 @@ SgfTree::~SgfTree()
 		delete subtree;
 }
 
+SgfTree* SgfTree::child(int i)
+{
+	return m_children.value(i, NULL);
+}
 
 void SgfTree::addChild(SgfTree *child)
 {
 	m_children.push_back(child);
 	child->setParent(this);
-}
-
-void SgfTree::setParent(SgfTree *newParent)
-{
-	m_parent = newParent;
-}
-
-SgfTree* SgfTree::parent()
-{
-	return m_parent;
 }
 
 void SgfTree::removeChild(SgfTree *child)
@@ -51,27 +45,7 @@ void SgfTree::setAttribute(const QString &attrname, SgfVariant val)
 	m_attr.insert(attrname, val);
 }
 
-QVector <SgfTree*> & SgfTree::children()
-{
-	return m_children;
-}
-
-SgfTree *SgfTree::child(int i)
-{
-	return m_children.value(i, NULL);
-}
-
 QMultiMap <QString, SgfVariant>& SgfTree::attributes()
 {
 	return m_attr;
-}
-
-quint16 SgfTree::moveIndex()
-{
-	return m_moveIndex;
-}
-
-void SgfTree::setMoveIndex(quint16 index)
-{
-	m_moveIndex = index;
 }

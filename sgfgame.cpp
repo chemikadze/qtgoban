@@ -3,7 +3,7 @@
 const QMap <QString, SgfVariant::Type> SgfGame::m_typeMap = SgfGame::createSgfTypeMap();
 const QMap <SgfGame::Error, QString> SgfGame::m_errorStrings = SgfGame::createErrorStringsMap();
 
-SgfGame::SgfGame(QSize size /* =QSize(19, 19) */)
+SgfGame::SgfGame(QSize size /* =QSize(19, 19) */) : m_size(0, 0)
 {
 	resize(size);
 	m_io = new QFile();
@@ -20,63 +20,59 @@ SgfGame::~SgfGame()
 }
 
 /*
-   @i - column
-   @j - row
-*/
-StoneColor SgfGame::stone(char i, char j)
-{
-	return m_board[i][j];
-}
-
-const QVector < QVector<StoneColor> > &  SgfGame::board()
-{
-	return m_board;
-}
-
-SgfTree* SgfGame::tree()
-{
-	return m_tree;
-}
-
-SgfTree* SgfGame::currentMove()
-{
-	return m_current;
-}
-
-/*
   TODO: maybe create some pointers for comments/marks/etc?
 */
 
-bool SgfGame::makeMove(qint8 col, qint8 row, StoneColor color/* =Void  */)
+bool SgfGame::makeMove(qint8 col, qint8 row)
 {
-	if (color == StoneVoid)
-		color = m_turn;
-	SgfTree* newNode = new SgfTree(m_current);
-	m_current->addChild(newNode);
-	m_current = newNode;
-	if (moveIsCorrect(col, row))
+	SgfTree* newNode = NULL;
+	foreach (SgfTree* node, m_current->children())
 	{
-		if (m_turn == StoneBlack)
-			m_current->setAttribute("B", SgfVariant(col, row));
+		if (m_turn == StoneBlack && node->attrValue("B").type() == SgfVariant::Move)
+		{
+			newNode = node;
+			break;
+		}
+		if (m_turn == StoneWhite && node->attrValue("W").type() == SgfVariant::Move)
+		{
+			newNode = node;
+			break;
+		}
+	}
+
+	if (!newNode)
+	{
+		newNode = new SgfTree(m_current);
+
+		if (moveIsCorrect(col, row))
+		{
+			if (m_turn == StoneBlack)
+				m_current->setAttribute("B", SgfVariant(col, row));
+			else
+				m_current->setAttribute("W", SgfVariant(col, row));
+		}
 		else
-			m_current->setAttribute("W", SgfVariant(col, row));
-		return true;
+		{
+			return false;
+		}
+		m_current->addChild(newNode);
 	}
-	else
-	{
-		return false;
-	}
+	setCurrentMove(newNode);
+	return true;
 }
 
-StoneColor SgfGame::turn()
+bool SgfGame::setCurrentMove(SgfTree *newCurr)
 {
-	return m_turn;
+	// TODO: BFS to make correct position
+	// how to handle eating? maybe save "points that had been ate by this move" Vector?
+	m_current = newCurr;
+	emit currentNodeChanged(m_current);
+	return true; // false if hasn't found
 }
-
 
 bool SgfGame::moveIsCorrect(qint8 col, qint8 row)
 {
-	// Ko, suicide
+	// TODO: Ko, suicide
 	if (m_board[col][row] == StoneVoid)
 		return true;
 	else
@@ -568,19 +564,8 @@ void SgfGame::resize(qint8 col, qint8 row /*=-1*/)
 void SgfGame::resize(QSize s)
 {
 	m_size = s;
-	m_board.resize(s.height());
-	for (int i=0; i<s.height(); ++i)
-		m_board[i].resize(s.width());
-}
-/*
-QSize SgfGame::size()const
-{
-	return m_size;
-}
-*/
-const QString& SgfGame::encoding()const
-{
-	return m_encoding;
+	resizeMatrix(m_board, s, StoneVoid);
+	resizeMatrix(m_markup, s, MVoid);
 }
 
 void SgfGame::emitError(Error errorcode)

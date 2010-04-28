@@ -33,6 +33,7 @@ public:
 
 protected:
 	QVector <QVector <StoneColor> > m_board;
+	QVector <QVector <Markup> > m_markup;
 	SgfTree *m_tree;
 	SgfTree *m_current;
 	QFile *m_io;
@@ -42,10 +43,12 @@ protected:
 	bool writeNode(SgfTree *node);
 	Error m_error;
 	StoneColor m_turn;
+
 	static const QMap <Error,QString> m_errorStrings;
 	static const QMap <QString, SgfVariant::Type> m_typeMap;
 	static QMap <QString, SgfVariant::Type> createSgfTypeMap();
 	static QMap <Error, QString> createErrorStringsMap();
+
 	bool isRootAttr(const QString& s);
 	QPair <QString,QString> splitCompose(const QString& s);
 // root attrs
@@ -67,18 +70,26 @@ signals:
 public:
 	bool setCurrentMove(SgfTree* newCurr);
 
-	inline StoneColor stone(char i, char j);
-	inline const QVector < QVector<StoneColor> >& board();
-  /*inline*/ SgfTree *tree();
-	inline SgfTree *currentMove();
-	inline const QString& encoding()const;
+	inline StoneColor stone(char col, char row) { return m_board[row][col]; }
+	inline const QVector < QVector<StoneColor> >& board() { return m_board; }
+
+	inline SgfTree *tree() { return m_tree; }
+	inline SgfTree *currentMove() { return m_current; }
+
+	inline const QString& encoding()const { return m_encoding; }
+
 	inline QSize size()const { return m_size; }
+
+	inline StoneColor turn() { return m_turn; }
+
+	inline Markup markup(qint8 col, qint8 row)const { return m_markup[row][col]; }
+	inline void setMarkup(qint8 col, qint8 row, Markup m) { m_markup[row][col] = m; }
+
 	void resize(QSize s);
 	void resize(qint8 col, qint8 row = -1);
 	void setEncoding(QString encoding);
-	bool makeMove(qint8 col, qint8 row, StoneColor color=StoneVoid); // realization
+	bool makeMove(qint8 col, qint8 row	); // need realization
 	bool moveIsCorrect(qint8 col, qint8 row);
-	inline StoneColor turn();
 
 	QFile::FileError loadBufferFromFile(const QString& filename);
 	QString readEncodingFromBuffer();

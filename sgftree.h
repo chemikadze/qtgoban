@@ -16,9 +16,9 @@ class SgfTree
 public:
 	void addChild(SgfTree *child);
 	void removeChild(SgfTree *child);
-	inline SgfTree* parent();
-	void setParent(SgfTree* newParent);
-	QVector <SgfTree*> & children();
+	inline SgfTree* parent() { return m_parent; }
+	inline void setParent(SgfTree* newParent) { m_parent = newParent; }
+	inline QVector <SgfTree*> children()const { return m_children; }
 	SgfTree* child(int i);
 
 /*
@@ -29,9 +29,8 @@ public:
 	void setAttribute(const QString& attrname, SgfVariant val);
 	QMultiMap <QString, SgfVariant>& attributes();
 
-	inline quint16 moveIndex();
-	inline void setMoveIndex(quint16 index);
-
+	inline quint16 moveIndex() { return m_moveIndex; }
+	inline void setMoveIndex(quint16 index) { m_moveIndex = index; }
 
 	SgfTree(SgfTree *p = NULL);
 	~SgfTree();
