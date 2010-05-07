@@ -1,3 +1,5 @@
+#include <QtCore/QQueue>
+#include <QtCore/QHash>
 #include "sgfgame.h"
 
 const QMap <QString, SgfVariant::Type> SgfGame::m_typeMap = SgfGame::createSgfTypeMap();
@@ -10,8 +12,10 @@ SgfGame::SgfGame(QSize size /* =QSize(19, 19) */) : m_size(0, 0)
 	codec = NULL;
 	setEncoding("UTF-8");
 	m_tree = new SgfTree();
+	m_current = m_tree;
 	m_st = 0;
 	m_error = ENo;
+	m_turn = StoneBlack;
 }
 
 SgfGame::~SgfGame()
@@ -28,12 +32,14 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 	SgfTree* newNode = NULL;
 	foreach (SgfTree* node, m_current->children())
 	{
-		if (m_turn == StoneBlack && node->attrValue("B").type() == SgfVariant::Move)
+		SgfVariant v = node->attrValue("B");
+		if (m_turn == StoneBlack && v.type() == SgfVariant::Move && v.toMove() == Point(col, row))
 		{
 			newNode = node;
 			break;
 		}
-		if (m_turn == StoneWhite && node->attrValue("W").type() == SgfVariant::Move)
+		v = node->attrValue("W");
+		if (m_turn == StoneWhite && v.type() == SgfVariant::Move && v.toMove() == Point(col, row))
 		{
 			newNode = node;
 			break;
@@ -42,29 +48,212 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 
 	if (!newNode)
 	{
-		newNode = new SgfTree(m_current);
-
 		if (moveIsCorrect(col, row))
 		{
+			newNode = new SgfTree(m_current);
+
 			if (m_turn == StoneBlack)
-				m_current->setAttribute("B", SgfVariant(col, row));
+				newNode->setAttribute("B", SgfVariant(col, row));
 			else
-				m_current->setAttribute("W", SgfVariant(col, row));
+				newNode->setAttribute("W", SgfVariant(col, row));
+
+			setKills(newNode);
+
+			m_current->addChild(newNode);
 		}
 		else
 		{
 			return false;
 		}
-		m_current->addChild(newNode);
 	}
 	setCurrentMove(newNode);
 	return true;
 }
 
+bool SgfGame::validatePoint(qint8 col, qint8 row)
+{
+	return col < m_size.width() && row < m_size.width() && col >=0 && row >= 0;
+}
+
+bool SgfGame::validatePoint(Point point)
+{
+	return validatePoint(point.first, point.second);
+}
+
+void SgfGame::validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const StoneColor color)
+{
+	if ( validatePoint(col, row) && isDead(col, row, color))
+		node->addKilled(Point(col, row));
+}
+
+void SgfGame::setKills(SgfTree *node)
+{
+	SgfVariant var;
+	var = node->attrValue("B");
+	StoneColor color = StoneBlack;
+	if (var.type() != SgfVariant::Move)
+	{
+		var = node->attrValue("W");
+		color = StoneWhite;
+		if (var.type() != SgfVariant::Move)
+			return;
+	}
+
+	Point move = var.toMove();
+
+	// right
+	validateAndAddKilled(node, move.first+1, move.second, color);
+	//left
+	validateAndAddKilled(node, move.first-1, move.second, color);
+	//top
+	validateAndAddKilled(node, move.first, move.second+1, color);
+	//bottom
+	validateAndAddKilled(node, move.first, move.second-1, color);
+}
+
+bool SgfGame::isDead(qint8 col, qint8 row, const StoneColor color /* = m_board[row][col]*/)
+{
+	QQueue < Point > q;
+	QVector < QVector<qint8> > matrix;
+
+	resizeMatrix(matrix, m_size, qint8(0));
+	matrix[row][col] = 1;
+	q.append( Point(col, row));
+
+	while (!q.isEmpty())
+	{
+		// Python-style lol
+		// slow but readable
+		QVector < Point > points;
+		points << Point (q.first().first+1, q.first().second)
+			   << Point (q.first().first-1, q.first().second)
+			   << Point (q.first().first, q.first().second+1)
+			   << Point (q.first().first, q.first().second-1);
+
+		foreach (Point point, points)
+		{
+			if ( validatePoint(point) && !matrix[point.first][point.second] )
+			{
+				if (m_board[point.first][point.second] == color)
+					q.enqueue( point );
+				else if (m_board[point.first][point.second] == StoneVoid)
+					return false;
+				matrix[point.first][point.second] = 1;
+			}
+		}
+		q.dequeue();
+	}
+	return true;
+}
+
+void SgfGame::stepForward(SgfTree *next)
+{
+	// TODO: Full support of attributes
+	StoneColor color = StoneBlack;
+	SgfVariant val = next->attrValue("B");
+	if (val.type() != SgfVariant::Move)
+	{
+		val = next->attrValue("W");
+		color = StoneWhite;
+	}
+
+	if (val.type() == SgfVariant::Move)
+	{
+		// make move
+		m_board[val.toMove().second][val.toMove().first] = color;
+		if (color == StoneBlack)
+			m_turn = StoneWhite;
+		else
+			m_turn = StoneBlack;
+	}
+	else
+	{
+		QList <SgfVariant> vals = next->attrValues("AB");
+		foreach (val, vals)
+		{
+			m_board[val.toMove().second][val.toMove().first] = StoneBlack;
+		}
+
+		vals = next->attrValues("AW");
+		foreach (val, vals)
+		{
+			m_board[val.toMove().second][val.toMove().first] = StoneWhite;
+		}
+
+
+		vals = next->attrValues("AE");
+		foreach (val, vals)
+		{
+			m_board[val.toMove().second][val.toMove().first] = StoneVoid;
+		}
+	}
+	m_current = next;
+}
+
+void SgfGame::stepBackward(SgfTree *prev)
+{
+	m_current = prev;
+	qDebug("Not realized yet...");
+}
+
 bool SgfGame::setCurrentMove(SgfTree *newCurr)
 {
-	// TODO: BFS to make correct position
-	// how to handle eating? maybe save "points that had been ate by this move" Vector?
+	if (newCurr == m_current)
+		return true;
+
+	QHash <SgfTree*, SgfTree*> w; // from second to first
+	QQueue <SgfTree*> q;
+
+	w.insert(newCurr, 0);
+	q.enqueue(newCurr);
+	while (q.size())
+	{
+		SgfTree* next;
+		foreach (SgfTree* next, q.first()->children())
+		{
+			if (!w.contains(next))
+			{
+				w.insert(next, q.first());
+				if (next == m_current)
+				{
+					q.clear();
+					q.enqueue(next);
+					break;
+				}
+				q.enqueue(next);
+			}
+		}
+		next = q.first()->parent();
+		if (next && !w.contains(next))
+		{
+			// code copy >_<
+			w.insert(next, q.first());
+			if (next == m_current)
+			{
+				q.clear();
+				break;
+			}
+			q.enqueue(next);
+		}
+		q.dequeue();
+	}
+
+	SgfTree *nextNode;
+	do
+	{
+		nextNode = w.value(m_current, 0);
+		Q_ASSERT(nextNode);
+		if (m_current->moveIndex() > nextNode->moveIndex())
+		{
+			stepBackward(nextNode);
+		}
+		else
+		{
+			stepForward(nextNode);
+		}
+	}
+	while (m_current != newCurr);
+
 	m_current = newCurr;
 	emit currentNodeChanged(m_current);
 	return true; // false if hasn't found
@@ -73,7 +262,7 @@ bool SgfGame::setCurrentMove(SgfTree *newCurr)
 bool SgfGame::moveIsCorrect(qint8 col, qint8 row)
 {
 	// TODO: Ko, suicide
-	if (m_board[col][row] == StoneVoid)
+	if (m_board[row][col] == StoneVoid)
 		return true;
 	else
 		return false;
@@ -102,11 +291,15 @@ bool SgfGame::readGameFromBuffer()
 	delete m_tree;
 	m_tree = readNodeFromBuffer();
 	if (m_tree)
+	{
+		m_current = m_tree;
 		return true;
+	}
 	else
 	{
 		qWarning("SgfGame: can not load game from buffer with error %d (%s)", m_error, errorToString(m_error).toLatin1().data());
 		m_tree = new SgfTree();
+		m_current = m_tree;
 		return false;
 	}
 }
@@ -337,6 +530,7 @@ void SgfGame::writeNodeToBuffer(SgfTree *node)
 																  s_size,
 																  QString::number(m_st),
 																  VERSION_STRING);
+		// TODO: when writing - write other root attrs (!)
 		m_buffer.append( codec->fromUnicode(data) );
 	}
 	while (node != NULL)

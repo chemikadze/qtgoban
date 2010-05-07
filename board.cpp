@@ -8,6 +8,10 @@ Board::Board()
 {
 }
 
+Board::~Board()
+{
+}
+
 void Board::resizeEvent(QResizeEvent* )
 {
 	dx = dy = 15;
@@ -15,15 +19,19 @@ void Board::resizeEvent(QResizeEvent* )
 			double(m_game->size().width()-1)/double(m_game->size().height()-1) )
 	{
 		cellsize = double(height()-dy*2)/double(m_game->size().height()-1);
-		dx += (width()-dx*2 - cellsize*m_game->size().width())/2;
+		dx += (width()-dx*2 - cellsize*(m_game->size().width()-1))/2;
 	}
 	else
 	{
 		cellsize = double(width()-dx*2)/double(m_game->size().width()-1);
-		dy += (height()-dy*2 - cellsize*m_game->size().height())/2;
+		dy += (height()-dy*2 - cellsize*(m_game->size().height()-1))/2;
 	}
 }
 
+void Board::boardChanged()
+{
+	repaint();
+}
 
 int Board::canvasXToStone(int x)
 {
@@ -48,7 +56,6 @@ double Board::stoneYToCanvas(int y)
 void Board::paintEvent(QPaintEvent* )
 {
 	QPainter p(this);
-	p.setRenderHint(QPainter::Antialiasing, true);
 	p.setBrush(QColor(153, 102, 51));
 	p.drawRect(dx, dy,
 			   double(m_game->size().width()-1) * cellsize,
@@ -99,6 +106,7 @@ void Board::paintEvent(QPaintEvent* )
 		}
 	}
 
+	p.setRenderHint(QPainter::Antialiasing, true);
 	// stones && markup
 	for (int i=0; i<m_game->size().width(); ++i) // col
 		for (int j=0; j<m_game->size().height(); ++j) // row
@@ -125,7 +133,6 @@ void Board::paintEvent(QPaintEvent* )
 			}
 		}
 
-
 	b = std::min(dx, dy);
 	QFontMetrics fm(p.font());
 	for (int i=0; i<m_game->size().height(); ++i) // y: 1 2 3 ...
@@ -151,7 +158,15 @@ void Board::mouseReleaseEvent(QMouseEvent* e)
 	y = canvasYToStone(e->y());
 	x = round( (e->x() - dx) / cellsize);
 	y = round( (e->y() - dy) / cellsize);
+	if (x<0 || y<0  || x>=m_game->size().width() || y>=m_game->size().height())
+		return;
 	qDebug("Move %d %d", x, y);
 	makeMove(x, y);
 	repaint();
+}
+
+void Board::setGame(SgfGame *game)
+{
+	m_game = game;
+	connect(game, SIGNAL(currentNodeChanged(SgfTree*)), this, SLOT(repaint()));
 }

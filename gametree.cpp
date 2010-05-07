@@ -9,8 +9,6 @@
 
 GameTree::GameTree(QWidget *parent, SgfGame *gm) : QAbstractScrollArea(parent)
 {
-	connect(verticalScrollBar(), SIGNAL(valueChanged(int)), SLOT(scroll()));
-	connect(horizontalScrollBar(), SIGNAL(valueChanged(int)), SLOT(scroll()));
 	setGame(gm);
 	verticalScrollBar()->setMinimum(0);
 	horizontalScrollBar()->setMinimum(0);
@@ -89,17 +87,14 @@ void GameTree::paintEvent(QPaintEvent *)
 #endif
 }
 
-void GameTree::scroll()
-{
-
-}
-
 void GameTree::setGame(SgfGame *gm)
 {
 #ifdef DEBUG
 	QTime t; t.start();
 #endif
 	m_game = gm;
+	m_layers.clear();
+	m_layers.resize(0);
 	if (gm)
 	{
 		m_tree = new Node;
@@ -114,15 +109,50 @@ void GameTree::setGame(SgfGame *gm)
 	}
 	else
 	{
-		m_layers.clear();
 		m_tree = NULL;
 		m_treeWidth = 0;
 	}
 	m_currCol = m_currRow = 0;
 	m_currNode = m_tree;
+	if (m_game)
+		connect(m_game, SIGNAL(currentNodeChanged(SgfTree*)), this, SLOT(setCurrentNode(SgfTree*)));
 #ifdef DEBUG
 	qDebug("Game open time: %d", t.elapsed());
 #endif
+}
+
+long GameTree::rescanNode(Node* node)
+{
+	if (m_layers.size() <= m_scanDepth+1)
+	{
+		m_layers.resize(m_scanDepth+2);
+	}
+
+	m_scanDepth++;
+	bool b = true;
+	foreach (Node *child, node->children)
+	{
+		if (!m_layers[m_scanDepth].empty())
+		{
+			child->pos = std::max(node->pos, (m_layers[m_scanDepth].end()-1).key()+1);
+		}
+		else
+		{
+			child->pos = node->pos;
+		}
+		child->pos = scanNode(child);
+		if (b)
+		{
+			node->pos = child->pos;
+			b = false;
+		}
+	}
+	m_scanDepth--;
+	m_layers[m_scanDepth].insert(node->pos, node);
+
+	if (m_treeWidth <= node->pos)
+		m_treeWidth = node->pos+1;
+	return node->pos;
 }
 
 long GameTree::scanNode(Node *node)
@@ -181,5 +211,47 @@ void GameTree::mousePressEvent(QMouseEvent *e)
 		m_currNode = m_layers[col].value(row);
 		viewport()->repaint();
 		emit nodeSelected(m_currNode->sgfNode, oldNode);
+		m_game->setCurrentMove(m_currNode->sgfNode);
 	}
+}
+
+void GameTree::addNewNode(SgfTree *node)
+{
+	Node* parent, *newNode;
+	for (QMap <long, Node*>::iterator it = m_layers[node->moveIndex()-1].begin(); it!=m_layers[node->moveIndex()-1].end(); ++it)
+	{
+		if ( it.value()->sgfNode == node->parent() )
+		{
+			parent = it.value();
+		}
+	}
+	newNode = new Node;
+	newNode->sgfNode = node;
+	newNode->parent = parent;
+	parent->children.append(newNode);
+
+	m_scanDepth = 0;
+	m_layers.clear();
+	rescanNode(m_tree);
+	viewport()->repaint();
+}
+
+void GameTree::setCurrentNode(SgfTree *node)
+{
+	m_currCol = node->moveIndex();
+	m_currRow = -1;
+	while (m_currRow == -1)
+	{
+		for (QMap<long, Node*>::iterator it = m_layers[m_currCol].begin(); it!=m_layers[m_currCol].end(); ++it)
+		{
+			if (it.value()->sgfNode == node)
+			{
+				m_currRow = it.key();
+				m_currNode = it.value();
+			}
+		}
+		if (m_currRow == -1)
+			addNewNode(node);
+	}
+	viewport()->repaint();
 }

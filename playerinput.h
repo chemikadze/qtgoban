@@ -18,7 +18,7 @@ protected:
 
 public:
 	inline SgfGame* game()const { return m_game; }
-	inline void setGame(SgfGame* game) { m_game = game; }
+	virtual void setGame(SgfGame* game);
 
 	inline void setAllowInput(StoneColor allowTo) { m_allowTo = allowTo; }
 	inline StoneColor allowInput()const { return m_allowTo; }

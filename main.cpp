@@ -36,7 +36,7 @@ int main(int argc, char** argv)
 
 	GameTree tree;
 	tree.setGame(&g);
-//	tree.show();
+	tree.show();
 
 	Board board;
 	board.setGame(&g);

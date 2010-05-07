@@ -18,3 +18,8 @@ void PlayerInput::makeMove(qint8 col, qint8 row)
 		qWarning("%s:%d No game!", __FILE__, __LINE__ );
 	}
 }
+
+void PlayerInput::setGame(SgfGame* game)
+{
+	m_game = game;
+}

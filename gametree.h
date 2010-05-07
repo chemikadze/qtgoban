@@ -35,13 +35,15 @@ class GameTree : public QAbstractScrollArea
 	Node* m_currNode;
 
 protected slots:
-	void scroll();
+	void setCurrentNode(SgfTree*);
+	void addNewNode(SgfTree*);
 
 protected:
 	void mousePressEvent(QMouseEvent *);
 	void resizeEvent(QResizeEvent *);
 	void paintEvent(QPaintEvent *);
 	long scanNode(Node* node);
+	long rescanNode(Node* node);
 	void drawNode(Node *node);
 
 public:

@@ -6,6 +6,8 @@
 
 class Board : public AbstractBoard
 {
+	Q_OBJECT
+
 	int dx, dy;
 	double cellsize;
 
@@ -14,6 +16,9 @@ private:
 	void mouseReleaseEvent(QMouseEvent* e);
 	void resizeEvent(QResizeEvent *);
 
+protected slots:
+	void boardChanged();
+
 protected:
 	int canvasXToStone(int x);
 	int canvasYToStone(int y);
@@ -21,7 +26,9 @@ protected:
 	double stoneYToCanvas(int y);
 
 public:
-    Board();
+	virtual void setGame(SgfGame* game);
+	Board();
+	virtual ~Board();
 };
 
 #endif // BOARD_H

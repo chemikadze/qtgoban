@@ -10,6 +10,8 @@
 enum StoneColor { StoneVoid = 0x0, StoneBlack = 0x1, StoneWhite = 0x2, StoneBoth = 0x3};
 enum Markup { MVoid = 0x0, MCircle, MCross, MSquare, MTriangle, MSelection };
 
+typedef QPair<qint8, qint8> Point;
+
 template <typename T>
 void resizeMatrix(QVector< QVector<T> > &v, QSize newSize, T defaultValue)
 {

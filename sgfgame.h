@@ -61,6 +61,15 @@ protected:
 	void emitError(Error errcode);
 	QString errorToString(Error errcode);
 
+	bool isDead(qint8 col, qint8 row, const StoneColor color);
+	void setKills(SgfTree* node);
+	void validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const StoneColor color);
+	bool validatePoint(qint8 col, qint8 row);
+	bool validatePoint(Point point);
+
+	void stepForward(SgfTree *next);
+	void stepBackward(SgfTree* prev);
+
 signals:
 	void wrongValue(QString attrName, QString dataString);
 	void errorOccured(Error errorcode);
