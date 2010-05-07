@@ -1,6 +1,7 @@
 #ifndef BOARD_H
 #define BOARD_H
 
+#include <QtGui/QMessageBox>
 #include "abstractboard.h"
 #include "sgfgame.h"
 
@@ -18,6 +19,7 @@ private:
 
 protected slots:
 	void boardChanged();
+	inline void showMoveError(QString s) { QMessageBox::critical(this, tr("Error!"), s); };
 
 protected:
 	int canvasXToStone(int x);

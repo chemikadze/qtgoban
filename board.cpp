@@ -169,4 +169,5 @@ void Board::setGame(SgfGame *game)
 {
 	m_game = game;
 	connect(game, SIGNAL(currentNodeChanged(SgfTree*)), this, SLOT(repaint()));
+	connect(game, SIGNAL(moveErrorOccured(QString)), this, SLOT(showMoveError(QString)));
 }

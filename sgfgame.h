@@ -29,7 +29,9 @@ class SgfGame : public QObject
 public:
 	// all except EBadSyntax and WrongGM are not fatal
 	enum Error { ENo, EBadAttrName, EBadSyntax, EWrongGM, EUnknownEncoding };
-
+	enum MoveError {MENo, MESuicide, MEKo};
+	QVector <int> m_killed;
+	QVector <int> m_square;
 
 protected:
 	QVector <QVector <StoneColor> > m_board;
@@ -44,10 +46,13 @@ protected:
 	Error m_error;
 	StoneColor m_turn;
 
-	static const QMap <Error,QString> m_errorStrings;
-	static const QMap <QString, SgfVariant::Type> m_typeMap;
-	static QMap <QString, SgfVariant::Type> createSgfTypeMap();
-	static QMap <Error, QString> createErrorStringsMap();
+	static const QHash <Error,QString> m_errorStrings;
+	static const QHash <QString, SgfVariant::Type> m_typeHash;
+	static const QHash <MoveError, QString> m_moveErrorStrings;
+
+	static QHash <QString, SgfVariant::Type> createSgfTypeHash();
+	static QHash <Error, QString> createErrorStringsHash();
+	static QHash <MoveError, QString> createMoveErrorHash();
 
 	bool isRootAttr(const QString& s);
 	QPair <QString,QString> splitCompose(const QString& s);
@@ -59,25 +64,37 @@ protected:
 	SgfTree* readNodeFromBuffer(SgfTree *parent=NULL);
 	void writeNodeToBuffer(SgfTree *node);
 	void emitError(Error errcode);
-	QString errorToString(Error errcode);
+	void emitMoveError(MoveError errcode);
+	QString ittegularMoveToString(MoveError errcode);
 
-	bool isDead(qint8 col, qint8 row, const StoneColor color);
+	bool isDead(qint8 col, qint8 row);
 	void setKills(SgfTree* node);
 	void validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const StoneColor color);
 	bool validatePoint(qint8 col, qint8 row);
 	bool validatePoint(Point point);
 
 	void stepForward(SgfTree *next);
-	void stepBackward(SgfTree* prev);
+	void stepBackward();
+
+	int fillGroup(qint8 col, qint8 row, StoneColor color);
 
 signals:
 	void wrongValue(QString attrName, QString dataString);
 	void errorOccured(Error errorcode);
+	void errorOccured(QString s);
 	void newNode(SgfTree* newCurr);
 	void currentNodeChanged(SgfTree* current);
+	//void message(QString);
+	void moveErrorOccured(MoveError errcode);
+	void moveErrorOccured(QString s);
 
 public:
+
 	bool setCurrentMove(SgfTree* newCurr);
+
+	inline Error error() { return m_error; }
+	inline QString errorToString(Error e) { return m_errorStrings.value(e); }
+	inline QString moveErrorToString(MoveError e) { return m_moveErrorStrings.value(e); }
 
 	inline StoneColor stone(char col, char row) { return m_board[row][col]; }
 	inline const QVector < QVector<StoneColor> >& board() { return m_board; }

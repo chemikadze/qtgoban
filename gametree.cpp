@@ -116,6 +116,7 @@ void GameTree::setGame(SgfGame *gm)
 	m_currNode = m_tree;
 	if (m_game)
 		connect(m_game, SIGNAL(currentNodeChanged(SgfTree*)), this, SLOT(setCurrentNode(SgfTree*)));
+	resizeEvent(NULL);
 #ifdef DEBUG
 	qDebug("Game open time: %d", t.elapsed());
 #endif
@@ -233,6 +234,7 @@ void GameTree::addNewNode(SgfTree *node)
 	m_scanDepth = 0;
 	m_layers.clear();
 	rescanNode(m_tree);
+	resizeEvent(NULL);
 	viewport()->repaint();
 }
 

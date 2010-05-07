@@ -2,10 +2,11 @@
 #include <QtCore/QHash>
 #include "sgfgame.h"
 
-const QMap <QString, SgfVariant::Type> SgfGame::m_typeMap = SgfGame::createSgfTypeMap();
-const QMap <SgfGame::Error, QString> SgfGame::m_errorStrings = SgfGame::createErrorStringsMap();
+const QHash <QString, SgfVariant::Type> SgfGame::m_typeHash = SgfGame::createSgfTypeHash();
+const QHash <SgfGame::Error, QString> SgfGame::m_errorStrings = SgfGame::createErrorStringsHash();
+const QHash <SgfGame::MoveError, QString> SgfGame::m_moveErrorStrings = SgfGame::createMoveErrorHash();
 
-SgfGame::SgfGame(QSize size /* =QSize(19, 19) */) : m_size(0, 0)
+SgfGame::SgfGame(QSize size /* =QSize(19, 19) */) : m_killed(3, 0), m_square(3, 0), m_size(0, 0)
 {
 	resize(size);
 	m_io = new QFile();
@@ -20,7 +21,9 @@ SgfGame::SgfGame(QSize size /* =QSize(19, 19) */) : m_size(0, 0)
 
 SgfGame::~SgfGame()
 {
+	saveToFile("./tests/output.sgf");
 	delete m_io;
+	delete m_tree;
 }
 
 /*
@@ -48,7 +51,7 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 
 	if (!newNode)
 	{
-		if (moveIsCorrect(col, row))
+		if (m_board[row][col] == StoneVoid)
 		{
 			newNode = new SgfTree(m_current);
 
@@ -57,7 +60,16 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 			else
 				newNode->setAttribute("W", SgfVariant(col, row));
 
+			m_board[row][col] = m_turn;
 			setKills(newNode);
+			if (newNode->killed().isEmpty() && isDead(col, row))
+			{
+				m_board[row][col] = StoneVoid;
+				emitMoveError(MESuicide);
+				delete newNode;
+				return  false;
+			}
+			m_board[row][col] = StoneVoid;
 
 			m_current->addChild(newNode);
 		}
@@ -80,9 +92,9 @@ bool SgfGame::validatePoint(Point point)
 	return validatePoint(point.first, point.second);
 }
 
-void SgfGame::validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const StoneColor color)
+void SgfGame::validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const StoneColor killColor)
 {
-	if ( validatePoint(col, row) && isDead(col, row, color))
+	if ( validatePoint(col, row) && m_board[row][col]==killColor && isDead(col, row))
 		node->addKilled(Point(col, row));
 }
 
@@ -90,11 +102,11 @@ void SgfGame::setKills(SgfTree *node)
 {
 	SgfVariant var;
 	var = node->attrValue("B");
-	StoneColor color = StoneBlack;
+	StoneColor killColor = StoneWhite;
 	if (var.type() != SgfVariant::Move)
 	{
 		var = node->attrValue("W");
-		color = StoneWhite;
+		killColor = StoneBlack;
 		if (var.type() != SgfVariant::Move)
 			return;
 	}
@@ -102,23 +114,27 @@ void SgfGame::setKills(SgfTree *node)
 	Point move = var.toMove();
 
 	// right
-	validateAndAddKilled(node, move.first+1, move.second, color);
+	validateAndAddKilled(node, move.first+1, move.second, killColor);
 	//left
-	validateAndAddKilled(node, move.first-1, move.second, color);
+	validateAndAddKilled(node, move.first-1, move.second, killColor);
 	//top
-	validateAndAddKilled(node, move.first, move.second+1, color);
+	validateAndAddKilled(node, move.first, move.second-1, killColor);
 	//bottom
-	validateAndAddKilled(node, move.first, move.second-1, color);
+	validateAndAddKilled(node, move.first, move.second+1, killColor);
 }
 
-bool SgfGame::isDead(qint8 col, qint8 row, const StoneColor color /* = m_board[row][col]*/)
+bool SgfGame::isDead(qint8 col, qint8 row)
 {
+	StoneColor color = m_board[row][col];
+	if (color == StoneVoid)
+		return false;
+
 	QQueue < Point > q;
 	QVector < QVector<qint8> > matrix;
 
 	resizeMatrix(matrix, m_size, qint8(0));
 	matrix[row][col] = 1;
-	q.append( Point(col, row));
+	q.append( Point(col, row) );
 
 	while (!q.isEmpty())
 	{
@@ -132,13 +148,13 @@ bool SgfGame::isDead(qint8 col, qint8 row, const StoneColor color /* = m_board[r
 
 		foreach (Point point, points)
 		{
-			if ( validatePoint(point) && !matrix[point.first][point.second] )
+			if ( validatePoint(point) && !matrix[point.second][point.first] )
 			{
-				if (m_board[point.first][point.second] == color)
+				if (m_board[point.second][point.first] == color)
 					q.enqueue( point );
-				else if (m_board[point.first][point.second] == StoneVoid)
+				else if (m_board[point.second][point.first] == StoneVoid)
 					return false;
-				matrix[point.first][point.second] = 1;
+				matrix[point.second][point.first] = 1;
 			}
 		}
 		q.dequeue();
@@ -146,9 +162,47 @@ bool SgfGame::isDead(qint8 col, qint8 row, const StoneColor color /* = m_board[r
 	return true;
 }
 
+int SgfGame::fillGroup(qint8 col, qint8 row, StoneColor fillColor)
+{
+	int res = 0;
+	QQueue < Point > q;
+	QVector < QVector<qint8> > matrix;
+	StoneColor color = m_board[row][col];
+
+	resizeMatrix(matrix, m_size, qint8(0));
+	matrix[row][col] = 1;
+	q.append(Point(col, row));
+
+	while (!q.isEmpty())
+	{
+		// Python-style lol
+		// slow but readable
+		QVector < Point > points;
+		points << Point (q.first().first+1, q.first().second)
+			   << Point (q.first().first-1, q.first().second)
+			   << Point (q.first().first, q.first().second+1)
+			   << Point (q.first().first, q.first().second-1);
+
+		foreach (Point point, points)
+		{
+			if ( validatePoint(point) && !matrix[point.second][point.first] )
+			{
+				if (m_board[point.second][point.first] == color)
+					q.enqueue( point );
+				matrix[point.second][point.first] = 1;
+			}
+		}
+		m_board[q.first().second][q.first().first] = fillColor;
+		++res;
+		q.dequeue();
+	}
+	return res;
+}
+
 void SgfGame::stepForward(SgfTree *next)
 {
 	// TODO: Full support of attributes
+
 	StoneColor color = StoneBlack;
 	SgfVariant val = next->attrValue("B");
 	if (val.type() != SgfVariant::Move)
@@ -161,10 +215,20 @@ void SgfGame::stepForward(SgfTree *next)
 	{
 		// make move
 		m_board[val.toMove().second][val.toMove().first] = color;
+		// TODO: using of attribute of turn
 		if (color == StoneBlack)
 			m_turn = StoneWhite;
 		else
 			m_turn = StoneBlack;
+
+		if (next->killed().isEmpty())
+			setKills(next);
+
+		foreach (Point killedStone, next->killed())
+		{
+			int square = fillGroup(killedStone.first, killedStone.second, StoneVoid);
+			m_killed[color] += square;
+		}
 	}
 	else
 	{
@@ -190,10 +254,55 @@ void SgfGame::stepForward(SgfTree *next)
 	m_current = next;
 }
 
-void SgfGame::stepBackward(SgfTree *prev)
+void SgfGame::stepBackward()
 {
-	m_current = prev;
-	qDebug("Not realized yet...");
+	StoneColor killColor = StoneWhite;
+	SgfVariant val = m_current->attrValue("B");
+	if (val.type() != SgfVariant::Move)
+	{
+		val = m_current->attrValue("W");
+		killColor = StoneBlack;
+	}
+
+	if (val.type() == SgfVariant::Move)
+	{
+		// delete move
+
+		foreach (Point killedStone, m_current->killed())
+		{
+			int square = fillGroup(killedStone.first, killedStone.second, killColor);
+			m_killed[killColor] -= square;
+		}
+
+		m_board[val.toMove().second][val.toMove().first] = StoneVoid;
+		if (killColor == StoneBlack)
+			m_turn = StoneWhite;
+		else
+			m_turn = StoneBlack;
+		// TODO: using of attribute of turn
+	}
+	else
+	{
+		QList <SgfVariant> vals = m_current->attrValues("AB");
+		foreach (val, vals)
+		{
+			m_board[val.toMove().second][val.toMove().first] = StoneVoid;
+		}
+
+		vals = m_current->attrValues("AW");
+		foreach (val, vals)
+		{
+			m_board[val.toMove().second][val.toMove().first] = StoneVoid;
+		}
+
+		vals = m_current->attrValues("AE");
+		foreach (val, vals)
+		{
+			m_board[val.toMove().second][val.toMove().first] = StoneVoid;
+		}
+	}
+
+	m_current = m_current->parent();
 }
 
 bool SgfGame::setCurrentMove(SgfTree *newCurr)
@@ -245,7 +354,7 @@ bool SgfGame::setCurrentMove(SgfTree *newCurr)
 		Q_ASSERT(nextNode);
 		if (m_current->moveIndex() > nextNode->moveIndex())
 		{
-			stepBackward(nextNode);
+			stepBackward();
 		}
 		else
 		{
@@ -263,7 +372,9 @@ bool SgfGame::moveIsCorrect(qint8 col, qint8 row)
 {
 	// TODO: Ko, suicide
 	if (m_board[row][col] == StoneVoid)
+	{
 		return true;
+	}
 	else
 		return false;
 }
@@ -459,7 +570,7 @@ SgfTree* SgfGame::readNodeFromBuffer(SgfTree *parent /*=NULL*/)
 						++pos;
 
 					SgfVariant value = strToAttrValue(attrName, data);
-					if ( value.type() == NULL && value.type() != m_typeMap.value(attrName) )
+					if ( value.type() == NULL && value.type() != m_typeHash.value(attrName) )
 						emit wrongValue(attrName, data);
 					else
 					{
@@ -513,7 +624,7 @@ QFile::FileError SgfGame::saveToFile(const QString& filename)
 void SgfGame::writeNodeToBuffer(SgfTree *node)
 {
 	static QString attrvalue("[%1]");
-	QMultiMap<QString,SgfVariant>::iterator i;
+	QMultiHash<QString,SgfVariant>::iterator i;
 	QString activeKey;
 
 	m_buffer.append("(");
@@ -535,7 +646,8 @@ void SgfGame::writeNodeToBuffer(SgfTree *node)
 	}
 	while (node != NULL)
 	{
-		m_buffer.append(";");
+		if (node != m_tree)
+			m_buffer.append(";");
 		activeKey.clear();
 		for (i = node->attributes().begin(); i!=node->attributes().end(); ++i)
 		{
@@ -565,7 +677,7 @@ void SgfGame::writeNodeToBuffer(SgfTree *node)
 
 SgfVariant SgfGame::strToAttrValue(const QString& attr, const QString& data)
 {
-	SgfVariant::Type type = m_typeMap.value(attr);
+	SgfVariant::Type type = m_typeHash.value(attr);
 	SgfVariant ret;
 	bool ok = true;
 	if (type == SgfVariant::Number && attr == "SZ")
@@ -766,105 +878,116 @@ void SgfGame::emitError(Error errorcode)
 {
 	m_error = errorcode;
 	emit errorOccured(errorcode);
+	emit errorOccured(errorToString(errorcode));
 }
 
-QString SgfGame::errorToString(Error errorcode)
+void SgfGame::emitMoveError(MoveError errcode)
 {
-	return m_errorStrings.value(errorcode);
+	emit moveErrorOccured(errcode);
+	emit moveErrorOccured(moveErrorToString(errcode));
 }
 
-QMap <SgfGame::Error, QString> SgfGame::createErrorStringsMap()
+QHash <SgfGame::Error, QString> SgfGame::createErrorStringsHash()
 {
-	QMap <Error, QString> map;
-	map[ENo] = tr("No errors");
-	map[EBadAttrName] = tr("Bad attribute name");
-	map[EBadSyntax] = tr("Bad syntax");
-	map[EWrongGM] = tr("This is not a Go GSF file, GM attribute must have value \'1\'");
-	map[EUnknownEncoding] = tr("This file has no charset information or CA value is wrong");
-	return map;
+	QHash <Error, QString> hash;
+	hash[ENo] = tr("No errors");
+	hash[EBadAttrName] = tr("Bad attribute name");
+	hash[EBadSyntax] = tr("Bad syntax");
+	hash[EWrongGM] = tr("This is not a Go GSF file, GM attribute must have value \'1\'");
+	hash[EUnknownEncoding] = tr("This file has no charset information or CA value is wrong");
+	return hash;
 }
 
 // Yes, i can write that as const char[][] and some cycles, but that is more useful
-QMap <QString, SgfVariant::Type> SgfGame::createSgfTypeMap()
+QHash <QString, SgfVariant::Type> SgfGame::createSgfTypeHash()
 {
-	QMap <QString, SgfVariant::Type> typeMap;
+	QHash <QString, SgfVariant::Type> typeHash;
 	// Move
-	typeMap["B" ] = SgfVariant::Move;
-	typeMap["KO"] = SgfVariant::None;
-	typeMap["MN"] = SgfVariant::Move;
-	typeMap["W" ] = SgfVariant::Move;
+	typeHash["B" ] = SgfVariant::Move;
+	typeHash["KO"] = SgfVariant::None;
+	typeHash["MN"] = SgfVariant::Move;
+	typeHash["W" ] = SgfVariant::Move;
 	// Setup
-	typeMap["AB"] = SgfVariant::Move;
-	typeMap["AE"] = SgfVariant::Move;
-	typeMap["AW"] = SgfVariant::Move;
-	typeMap["PL"] = SgfVariant::Color;
+	typeHash["AB"] = SgfVariant::Move;
+	typeHash["AE"] = SgfVariant::Move;
+	typeHash["AW"] = SgfVariant::Move;
+	typeHash["PL"] = SgfVariant::Color;
 	// Node annotation
-	typeMap["C" ] = SgfVariant::Text;
-	typeMap["DM"] = SgfVariant::Double;
-	typeMap["GB"] = SgfVariant::Double;
-	typeMap["GW"] = SgfVariant::Double;
-	typeMap["HO"] = SgfVariant::Double;
-	typeMap["N" ] = SgfVariant::SimpleText;
-	typeMap["UC"] = SgfVariant::Double;
-	typeMap["V" ] = SgfVariant::Real;
+	typeHash["C" ] = SgfVariant::Text;
+	typeHash["DM"] = SgfVariant::Double;
+	typeHash["GB"] = SgfVariant::Double;
+	typeHash["GW"] = SgfVariant::Double;
+	typeHash["HO"] = SgfVariant::Double;
+	typeHash["N" ] = SgfVariant::SimpleText;
+	typeHash["UC"] = SgfVariant::Double;
+	typeHash["V" ] = SgfVariant::Real;
 	// Move annotation
-	typeMap["BM"] = SgfVariant::Double;
-	typeMap["DO"] = SgfVariant::None;
-	typeMap["IT"] = SgfVariant::None;
-	typeMap["TE"] = SgfVariant::Double;
+	typeHash["BM"] = SgfVariant::Double;
+	typeHash["DO"] = SgfVariant::None;
+	typeHash["IT"] = SgfVariant::None;
+	typeHash["TE"] = SgfVariant::Double;
 	// Markup
-	typeMap["AR"] = SgfVariant::Compose;
-	typeMap["CR"] = SgfVariant::Move;
-	typeMap["DD"] = SgfVariant::Move;
-	typeMap["LB"] = SgfVariant::Compose;
-	typeMap["LN"] = SgfVariant::Compose;
-	typeMap["MA"] = SgfVariant::Move;
-	typeMap["SL"] = SgfVariant::Move;
-	typeMap["SQ"] = SgfVariant::Move;
-	typeMap["TR"] = SgfVariant::Move;
+	typeHash["AR"] = SgfVariant::Compose;
+	typeHash["CR"] = SgfVariant::Move;
+	typeHash["DD"] = SgfVariant::Move;
+	typeHash["LB"] = SgfVariant::Compose;
+	typeHash["LN"] = SgfVariant::Compose;
+	typeHash["MA"] = SgfVariant::Move;
+	typeHash["SL"] = SgfVariant::Move;
+	typeHash["SQ"] = SgfVariant::Move;
+	typeHash["TR"] = SgfVariant::Move;
 	// Root
-	typeMap["AP"] = SgfVariant::Compose;
-	typeMap["CA"] = SgfVariant::SimpleText;
-	typeMap["FF"] = SgfVariant::Number;
-	typeMap["GM"] = SgfVariant::Number;
-	typeMap["ST"] = SgfVariant::Number;
-	typeMap["SZ"] = SgfVariant::Number;
+	typeHash["AP"] = SgfVariant::Compose;
+	typeHash["CA"] = SgfVariant::SimpleText;
+	typeHash["FF"] = SgfVariant::Number;
+	typeHash["GM"] = SgfVariant::Number;
+	typeHash["ST"] = SgfVariant::Number;
+	typeHash["SZ"] = SgfVariant::Number;
 	// Info
-	typeMap["BR"] = SgfVariant::SimpleText;
-	typeMap["BT"] = SgfVariant::SimpleText;
-	typeMap["CP"] = SgfVariant::SimpleText;
-	typeMap["DT"] = SgfVariant::SimpleText;
-	typeMap["EV"] = SgfVariant::SimpleText;
-	typeMap["GN"] = SgfVariant::SimpleText;
-	typeMap["GC"] = SgfVariant::Text;
-	typeMap["ON"] = SgfVariant::SimpleText;
-	typeMap["OT"] = SgfVariant::SimpleText;
-	typeMap["PB"] = SgfVariant::SimpleText;
-	typeMap["PC"] = SgfVariant::SimpleText;
-	typeMap["PW"] = SgfVariant::SimpleText;
-	typeMap["RE"] = SgfVariant::SimpleText;
-	typeMap["RO"] = SgfVariant::SimpleText;
-	typeMap["RU"] = SgfVariant::SimpleText;
-	typeMap["SO"] = SgfVariant::SimpleText;
-	typeMap["TM"] = SgfVariant::Real;
-	typeMap["US"] = SgfVariant::SimpleText;
-	typeMap["WR"] = SgfVariant::SimpleText;
-	typeMap["WT"] = SgfVariant::SimpleText;
+	typeHash["BR"] = SgfVariant::SimpleText;
+	typeHash["BT"] = SgfVariant::SimpleText;
+	typeHash["CP"] = SgfVariant::SimpleText;
+	typeHash["DT"] = SgfVariant::SimpleText;
+	typeHash["EV"] = SgfVariant::SimpleText;
+	typeHash["GN"] = SgfVariant::SimpleText;
+	typeHash["GC"] = SgfVariant::Text;
+	typeHash["ON"] = SgfVariant::SimpleText;
+	typeHash["OT"] = SgfVariant::SimpleText;
+	typeHash["PB"] = SgfVariant::SimpleText;
+	typeHash["PC"] = SgfVariant::SimpleText;
+	typeHash["PW"] = SgfVariant::SimpleText;
+	typeHash["RE"] = SgfVariant::SimpleText;
+	typeHash["RO"] = SgfVariant::SimpleText;
+	typeHash["RU"] = SgfVariant::SimpleText;
+	typeHash["SO"] = SgfVariant::SimpleText;
+	typeHash["TM"] = SgfVariant::Real;
+	typeHash["US"] = SgfVariant::SimpleText;
+	typeHash["WR"] = SgfVariant::SimpleText;
+	typeHash["WT"] = SgfVariant::SimpleText;
 	// Timing
-	typeMap["BL"] = SgfVariant::Real;
-	typeMap["OB"] = SgfVariant::Number;
-	typeMap["OW"] = SgfVariant::Number;
-	typeMap["WL"] = SgfVariant::Real;
+	typeHash["BL"] = SgfVariant::Real;
+	typeHash["OB"] = SgfVariant::Number;
+	typeHash["OW"] = SgfVariant::Number;
+	typeHash["WL"] = SgfVariant::Real;
 	// Misc
-	typeMap["FG"] = SgfVariant::Compose;
-	typeMap["PM"] = SgfVariant::Number;
-	typeMap["VW"] = SgfVariant::Move;
+	typeHash["FG"] = SgfVariant::Compose;
+	typeHash["PM"] = SgfVariant::Number;
+	typeHash["VW"] = SgfVariant::Move;
 	// Go
-	typeMap["HA"] = SgfVariant::Number;
-	typeMap["KM"] = SgfVariant::Real;
-	typeMap["TB"] = SgfVariant::Move;
-	typeMap["TW"] = SgfVariant::Move;
-	return typeMap;
+	typeHash["HA"] = SgfVariant::Number;
+	typeHash["KM"] = SgfVariant::Real;
+	typeHash["TB"] = SgfVariant::Move;
+	typeHash["TW"] = SgfVariant::Move;
+	return typeHash;
 }
 
 
+
+QHash <SgfGame::MoveError, QString> SgfGame::createMoveErrorHash()
+{
+	QHash <SgfGame::MoveError, QString> hash;
+	hash[MENo] = tr("No errors");
+	hash[MESuicide] = tr("Suicide move");
+	hash[MEKo] = tr("Ko");
+	return hash;
+}

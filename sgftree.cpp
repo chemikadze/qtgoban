@@ -45,7 +45,7 @@ void SgfTree::setAttribute(const QString &attrname, SgfVariant val)
 	m_attr.insert(attrname, val);
 }
 
-QMultiMap <QString, SgfVariant>& SgfTree::attributes()
+QMultiHash <QString, SgfVariant>& SgfTree::attributes()
 {
 	return m_attr;
 }
