@@ -42,6 +42,11 @@ QList<SgfVariant> SgfTree::attrValues(const QString &attrname)
 
 void SgfTree::setAttribute(const QString &attrname, SgfVariant val)
 {
+	m_attr.replace(attrname, val);
+}
+
+void SgfTree::addAttribute(const QString &attrname, SgfVariant val)
+{
 	m_attr.insert(attrname, val);
 }
 

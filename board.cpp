@@ -1,8 +1,11 @@
 #include <QtGui/QPainter>
 #include <QtGui/QRgb>
-#include <cmath>
 #include <QtGui/QFontMetrics>
 #include "board.h"
+
+#ifdef DEBUG
+#include <QtCore/QTime>
+#endif
 
 Board::Board()
 {
@@ -33,28 +36,11 @@ void Board::boardChanged()
 	repaint();
 }
 
-int Board::canvasXToStone(int x)
-{
-	return round( x - dx) / cellsize;
-}
-
-int Board::canvasYToStone(int y)
-{
-	return round( y - dy) / cellsize;
-}
-
-double Board::stoneXToCanvas(int x)
-{
-	return dx + cellsize * x;
-}
-
-double Board::stoneYToCanvas(int y)
-{
-	return dy + cellsize * y;
-}
-
 void Board::paintEvent(QPaintEvent* )
 {
+#ifdef DEBUG
+	QTime t; t.start();
+#endif
 	QPainter p(this);
 	p.setBrush(QColor(153, 102, 51));
 	p.drawRect(dx, dy,
@@ -79,8 +65,8 @@ void Board::paintEvent(QPaintEvent* )
 	// four fora points
 	for (int i=0; i<4; ++i)
 	{
-		p.drawEllipse(QPoint(stoneXToCanvas(i%2*(m_game->size().width()-5) + 2),
-							 stoneYToCanvas(i/2*(m_game->size().height()-5) + 2)),
+		p.drawEllipse(stoneXYToPoint(i%2*(m_game->size().width()-5) + 2,
+									 i/2*(m_game->size().height()-5) + 2),
 					  dotR, dotR);
 	}
 
@@ -89,8 +75,8 @@ void Board::paintEvent(QPaintEvent* )
 	{
 		for (int i=0; i<3; ++i)
 		{
-			p.drawEllipse(QPoint(stoneXToCanvas(m_game->size().width()/2) ,
-								 stoneYToCanvas(i*(m_game->size().height()-5)/2 + 2)),
+			p.drawEllipse(stoneXYToPoint(m_game->size().width()/2,
+										 i*(m_game->size().height()-5)/2 + 2),
 						  dotR, dotR);
 		}
 	}
@@ -100,8 +86,8 @@ void Board::paintEvent(QPaintEvent* )
 	{
 		for (int i=0; i<3; ++i)
 		{
-			p.drawEllipse(QPoint(dx + cellsize * (i*(m_game->size().width()-5)/2 + 2) ,
-								 dy + cellsize * (m_game->size().height()/2)),
+			p.drawEllipse(stoneXYToPoint(i*(m_game->size().width()-5)/2 + 2,
+										m_game->size().height()/2),
 						  dotR, dotR);
 		}
 	}
@@ -111,27 +97,35 @@ void Board::paintEvent(QPaintEvent* )
 	for (int i=0; i<m_game->size().width(); ++i) // col
 		for (int j=0; j<m_game->size().height(); ++j) // row
 		{
+			QPoint point(stoneXToCanvas(i), stoneYToCanvas(j));
 			// stones
 			StoneColor stone = m_game->stone(i, j);
 			if (stone != StoneVoid && stone != StoneBoth)
 			{
 				p.setBrush( stone == StoneBlack ? Qt::black : Qt::white );
-				p.drawEllipse(QPointF(stoneXToCanvas(i), stoneYToCanvas(j)), cellsize*0.4, cellsize*0.4);
-			}
-
-			// markup
-			Markup mark = m_game->markup(i, j);
-			switch (mark)
-			{
-			case MCircle:
-			case MCross:
-			case MSquare:
-			case MTriangle:
-			case MSelection:
-			default:
-				;
+				p.drawEllipse(point, int(cellsize*0.4+1), int(cellsize*0.4+1));
 			}
 		}
+
+	QHash <Markup, QString>::const_iterator i;
+	for (i = markupNames.constBegin(); i != markupNames.constEnd(); ++i)
+	{
+		foreach (SgfVariant val, m_game->currentMove()->attrValues(i.value()))
+		{
+			if (val.type() == SgfVariant::Move)
+			{
+				drawMark(val.toMove(), i.key());
+			}
+			else if (val.type() == SgfVariant::Compose) // squares
+			{
+				Point leftUp  = val.toCompose().first.toMove();
+				Point rightDn = val.toCompose().second.toMove();
+				for (int x = leftUp.first; x<=rightDn.first; ++x)
+					for (int y = leftUp.second; y<=rightDn.second; ++y)
+						drawMark(Point(x, y), i.key());
+			}
+		}
+	}
 
 	b = std::min(dx, dy);
 	QFontMetrics fm(p.font());
@@ -148,20 +142,87 @@ void Board::paintEvent(QPaintEvent* )
 	}
 
 	p.end();
+#ifdef DEBUG
+	qDebug("Board render time: %d", t.elapsed());
+#endif
 
+}
+
+/* paths? */
+void Board::drawMark(Point pnt, Markup mark)
+{
+	QPainter p(this);
+	QPoint point = stoneXYToPoint(pnt.first, pnt.second);
+	int marksize = cellsize/4;
+
+	QPen pen(Qt::red);
+	pen.setWidth(2);
+	p.setPen(pen);
+
+	p.setRenderHint(QPainter::Antialiasing, true);
+
+	switch (mark)
+	{
+	case MCircle:
+		p.drawEllipse(point, marksize, marksize);
+		break;
+	case MCross:
+	{
+		p.drawLine(point-QPoint(marksize, marksize), point+QPoint(marksize, marksize));
+		p.drawLine(point-QPoint(-marksize, marksize), point+QPoint(-marksize, marksize));
+		break;
+	}
+	case MSquare:
+	{
+		p.drawRect(QRect(point-QPoint(marksize, marksize),
+						 point+QPoint(marksize, marksize)) );
+		break;
+	}
+	case MTriangle:
+	{
+		QPoint triangle[3];
+		for (int i = 0; i < 3; ++i)
+			triangle[i] = QPoint(point.x() + cos(i*M_PI*2.0/3.0-M_PI_2)*marksize,
+								 point.y() + sin(i*M_PI*2.0/3.0-M_PI_2)*marksize);
+		p.drawPolygon(triangle, 3);
+		break;
+	}
+	case MSelection:
+	{
+		// хз чо, хотябы так
+		p.setPen(Qt::green);
+		p.drawLine(point-QPoint(marksize, marksize), point+QPoint(marksize, marksize));
+		p.drawLine(point-QPoint(-marksize, marksize), point+QPoint(-marksize, marksize));
+		break;
+	}
+	case MTerrBlack:
+	case MTerrWhite:
+	{
+		p.setRenderHint(QPainter::Antialiasing, false);
+		p.setPen( Qt::black );
+		p.setBrush( mark == MTerrBlack ? Qt::black : Qt::white );
+		p.drawRect( QRect(point-QPoint(3, 3),
+						  point+QPoint(2, 2)) );
+	}
+	default:
+		;
+	}
+	p.end();
 }
 
 void Board::mouseReleaseEvent(QMouseEvent* e)
 {
-	qint8 x, y;
-	x = canvasXToStone(e->x());
-	y = canvasYToStone(e->y());
-	x = round( (e->x() - dx) / cellsize);
-	y = round( (e->y() - dy) / cellsize);
-	if (x<0 || y<0  || x>=m_game->size().width() || y>=m_game->size().height())
+	qint8 col, row;
+	col = canvasXToStone(e->x());
+	row = canvasYToStone(e->y());
+	col = round( (e->x() - dx) / cellsize);
+	row = round( (e->y() - dy) / cellsize);
+	if (!m_game->validatePoint(col, row))
 		return;
-	qDebug("Move %d %d", x, y);
-	makeMove(x, y);
+#ifdef DEBUG
+	qDebug("Move %d %d", col, row);
+#endif
+	makeMove(col, row);
 	repaint();
 }
 

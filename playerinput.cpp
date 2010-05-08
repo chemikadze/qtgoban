@@ -10,7 +10,7 @@ void PlayerInput::makeMove(qint8 col, qint8 row)
 {
 	if (m_game)
 	{
-		if ((m_allowTo & m_game->turn()) && m_game->stone(col, row) == StoneVoid)
+		if ((m_allowTo & m_game->turn()) && m_game->validatePoint(col, row) && m_game->canMove(col, row))
 			m_game->makeMove(col, row);
 	}
 	else

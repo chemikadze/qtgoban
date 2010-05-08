@@ -3,12 +3,13 @@
 
 #include <QtCore/QVector>
 #include <QtCore/QSize>
+#include <QtCore/QHash>
 
 #define VERSION_STRING "QGoban:0.1"
 #define VERSION 0.1
 
 enum StoneColor { StoneVoid = 0x0, StoneBlack = 0x1, StoneWhite = 0x2, StoneBoth = 0x3};
-enum Markup { MVoid = 0x0, MCircle, MCross, MSquare, MTriangle, MSelection };
+enum Markup { MVoid = 0x0, MCircle, MCross, MSquare, MTriangle, MSelection, MTerrBlack, MTerrWhite };
 
 typedef QPair<qint8, qint8> Point;
 
@@ -28,6 +29,14 @@ void resizeMatrix(QVector< QVector<T> > &v, QSize newSize, T defaultValue)
 
 	for (int i=oldSize.height(); i<newSize.height(); ++i)
 		v[i] = QVector <T> (newSize.width(), defaultValue);
+}
+
+extern const QHash <Markup, QString> markupNames;
+
+inline StoneColor invertColor(StoneColor c)
+{
+	return c == StoneBlack ? StoneWhite :
+				( c == StoneWhite ? StoneBlack : StoneVoid );
 }
 
 

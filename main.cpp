@@ -9,6 +9,7 @@
 #include "sgfgame.h"
 #include "gametree.h"
 #include "board.h"
+#include "commentview.h"
 
 int main(int argc, char** argv)
 {
@@ -38,11 +39,15 @@ int main(int argc, char** argv)
 	tree.setGame(&g);
 	tree.show();
 
+	CommentView view;
+	view.setGame(&g);
+	view.show();
+
 	Board board;
 	board.setGame(&g);
 	board.show();
 
 	g.saveToFile("./tests/output.sgf");
 
-	return app.exec(); // while not real GUI app
+	return app.exec();
 }

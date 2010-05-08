@@ -318,6 +318,14 @@ QPair <qint8, qint8> SgfVariant::toMove()const
 		return QPair<qint8,qint8>(0,0);
 }
 
+StoneColor SgfVariant::toColor()const
+{
+	if (m_type == Color)
+		return *(StoneColor*)m_data;
+	else
+		return StoneVoid;
+}
+
 QPair <SgfVariant,SgfVariant> SgfVariant::toCompose()const
 {
 	if ( m_type == Compose )
@@ -340,4 +348,34 @@ QList <SgfVariant> SgfVariant::toList()const
 		return ret;
 	}
 	return QList<SgfVariant>();
+}
+
+
+bool SgfVariant::operator ==(const SgfVariant& t)const
+{
+	if (m_type != t.m_type)
+		return false;
+	switch (m_type)
+	{
+	case None:
+		return true;
+	case Number:
+		return *(int*)m_data == *(int*)t.m_data;
+	case Real:
+		return *(double*)m_data == *(double*)t.m_data;
+	case Double:
+		return *(qint8*)m_data == *(qint8*)t.m_data;
+	case Color:
+		return *(StoneColor*)m_data == *(StoneColor*)t.m_data;
+	case SimpleText:
+		return *(QString*)m_data == *(QString*)t.m_data;
+	case Text:
+		return *(QString*)m_data == *(QString*)t.m_data;
+	case Move:
+		return *(QPair <qint8, qint8>*)m_data == *(QPair <qint8, qint8>*)t.m_data;
+	case Compose:
+		return *(QPair <SgfVariant,SgfVariant>*)m_data == *(QPair <SgfVariant,SgfVariant>*)t.m_data;
+	case List:
+		return *(QList <SgfVariant>*)m_data == *(QList <SgfVariant>*)t.m_data;
+	}
 }

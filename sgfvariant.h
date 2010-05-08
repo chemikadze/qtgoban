@@ -49,6 +49,7 @@ public:
 	Type type()const;
 
 	SgfVariant& operator= (const SgfVariant& t);
+	bool operator== (const SgfVariant& t)const;
 
     SgfVariant();
 	SgfVariant(int t);

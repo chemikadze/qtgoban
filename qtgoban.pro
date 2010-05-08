@@ -5,7 +5,8 @@ HEADERS += sgftree.h \
     gametree.h \
     playerinput.h \
     abstractboard.h \
-    board.h
+    board.h \
+    commentview.h
 SOURCES += sgftree.cpp \
     sgfgame.cpp \
     sgfvariant.cpp \
@@ -13,7 +14,9 @@ SOURCES += sgftree.cpp \
     gametree.cpp \
     playerinput.cpp \
     abstractboard.cpp \
-    board.cpp
+    board.cpp \
+    common.cpp \
+    commentview.cpp
 OTHER_FILES += output.sgf \
     input.sgf
 DEFINES += DEBUG

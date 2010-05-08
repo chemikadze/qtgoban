@@ -28,14 +28,14 @@ class SgfGame : public QObject
 
 public:
 	// all except EBadSyntax and WrongGM are not fatal
-	enum Error { ENo, EBadAttrName, EBadSyntax, EWrongGM, EUnknownEncoding };
+	enum Error { ENo, EBadAttrName, EBadSyntax, EWrongGM, EUnknownEncoding, EInvalidPoint };
 	enum MoveError {MENo, MESuicide, MEKo};
 	QVector <int> m_killed;
 	QVector <int> m_square;
 
 protected:
 	QVector <QVector <StoneColor> > m_board;
-	QVector <QVector <Markup> > m_markup;
+	QVector <QVector <bool> > m_markup;
 	SgfTree *m_tree;
 	SgfTree *m_current;
 	QFile *m_io;
@@ -45,6 +45,7 @@ protected:
 	bool writeNode(SgfTree *node);
 	Error m_error;
 	StoneColor m_turn;
+	QString m_comment;
 
 	static const QHash <Error,QString> m_errorStrings;
 	static const QHash <QString, SgfVariant::Type> m_typeHash;
@@ -70,11 +71,12 @@ protected:
 	bool isDead(qint8 col, qint8 row);
 	void setKills(SgfTree* node);
 	void validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const StoneColor color);
-	bool validatePoint(qint8 col, qint8 row);
-	bool validatePoint(Point point);
 
 	void stepForward(SgfTree *next);
 	void stepBackward();
+
+	bool setStone(Point p, StoneColor color, bool force = false);
+	bool setStone(qint8 col, qint8 row, StoneColor color, bool force = false);
 
 	int fillGroup(qint8 col, qint8 row, StoneColor color);
 
@@ -108,14 +110,19 @@ public:
 
 	inline StoneColor turn() { return m_turn; }
 
-	inline Markup markup(qint8 col, qint8 row)const { return m_markup[row][col]; }
-	inline void setMarkup(qint8 col, qint8 row, Markup m) { m_markup[row][col] = m; }
+	bool validatePoint(qint8 col, qint8 row);
+	bool validatePoint(Point point);
+
+	void setMarkup(qint8 col, qint8 row, Markup m);
 
 	void resize(QSize s);
 	void resize(qint8 col, qint8 row = -1);
 	void setEncoding(QString encoding);
-	bool makeMove(qint8 col, qint8 row	); // need realization
-	bool moveIsCorrect(qint8 col, qint8 row);
+	bool makeMove(qint8 col, qint8 row	);
+	bool canMove(qint8 col, qint8 row);
+
+	inline const QString& comment() { return m_comment; }
+	void setComment(const QString& comment);
 
 	QFile::FileError loadBufferFromFile(const QString& filename);
 	QString readEncodingFromBuffer();
