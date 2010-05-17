@@ -15,7 +15,9 @@ class SgfTree
 	QMultiHash <QString, SgfVariant> m_attr;
 	quint16 m_moveIndex;
 	QVector < QPair<Point,StoneColor> > m_killed;
-	QSet < QPair<Point, StoneColor> > m_rewrites;
+	// QSet eats too much memory
+	// maybe pointer?
+	QVector < QPair<Point, StoneColor> > m_rewrites;
 
 public:
 	void addChild(SgfTree *child);
@@ -29,9 +31,32 @@ public:
 	inline void addKilled(const Point &kill, StoneColor color) { m_killed.push_back(QPair<Point, StoneColor>(kill, color)); }
 
 	inline void addRewrite(qint8 col, qint8 row, StoneColor color) { addRewrite(Point(col, row), color); }
-	inline void addRewrite(Point p, StoneColor color) { m_rewrites.insert( QPair<Point, StoneColor>(p, color) ); }
-	inline const QSet < QPair<Point, StoneColor> > & rewrites() { return m_rewrites; }
-	inline void removeRewrite(QPair<Point, StoneColor> p) { m_rewrites.remove(p); }
+	inline void addRewrite(Point p, StoneColor color)
+	{
+		if (!m_rewrites.contains(QPair<Point, StoneColor>(p, color)))
+			m_rewrites.push_back(QPair<Point, StoneColor>(p, color) );
+	}
+	inline const QVector < QPair<Point, StoneColor> > & rewrites() { return m_rewrites; }
+	inline void removeRewrite(QPair<Point, StoneColor> p)
+	{
+		int it = m_rewrites.indexOf(p);
+		m_rewrites.remove(it);
+	}
+
+	inline SgfVariant getMoveVariant()
+	{
+		SgfVariant var = m_attr.value("B");
+		if (var.type() == SgfVariant::Move)
+			return var;
+		else
+		{
+			var = m_attr.value("W");
+			if (var.type() == SgfVariant::Move)
+				return var;
+			else
+				return SgfVariant();
+		}
+	}
 
 	SgfVariant attrValue(const QString& attrname)const;
 	QList<SgfVariant> attrValues(const QString& attrname);

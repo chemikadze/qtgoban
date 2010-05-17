@@ -44,7 +44,7 @@ int main(int argc, char** argv)
 	view.show();
 
 	Board board;
-	board.setGame(&g);
+	board.setGame(&g);	
 	board.show();
 
 	g.saveToFile("./tests/output.sgf");

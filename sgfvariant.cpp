@@ -377,5 +377,7 @@ bool SgfVariant::operator ==(const SgfVariant& t)const
 		return *(QPair <SgfVariant,SgfVariant>*)m_data == *(QPair <SgfVariant,SgfVariant>*)t.m_data;
 	case List:
 		return *(QList <SgfVariant>*)m_data == *(QList <SgfVariant>*)t.m_data;
+	default:
+		return false;
 	}
 }

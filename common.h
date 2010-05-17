@@ -14,7 +14,7 @@ enum Markup { MVoid = 0x0, MCircle, MCross, MSquare, MTriangle, MSelection, MTer
 typedef QPair<qint8, qint8> Point;
 
 template <typename T>
-void resizeMatrix(QVector< QVector<T> > &v, QSize newSize, T defaultValue)
+void resizeMatrix(QVector< QVector<T> > &v, QSize newSize, const T& defaultValue)
 {
 	QSize oldSize(v.size(),
 				  v.size()>0 ? v[0].size() : 0);

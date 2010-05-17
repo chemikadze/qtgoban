@@ -860,7 +860,7 @@ SgfVariant SgfGame::strToAttrValue(const QString& attr, const QString& data)
 		QPair <QString,QString> dataPair = splitCompose(data);
 		QPair <SgfVariant,SgfVariant> val;
 		if (attr == "AR" || attr == "LN" || attr == "AB" || attr == "AW" || attr == "AE" ||
-			markupNames.key(attr, MVoid)!=MVoid || attr == "TW" || attr == "TB" || attr == "DD")
+			markupNames.key(attr, MVoid)!=MVoid || attr == "VW" || attr == "TW" || attr == "TB" || attr == "DD")
 		{
 			val.first = SgfVariant::strToMove(dataPair.first);
 			val.second = SgfVariant::strToMove(dataPair.second);

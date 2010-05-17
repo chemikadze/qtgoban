@@ -219,11 +219,11 @@ void GameTree::mousePressEvent(QMouseEvent *e)
 void GameTree::addNewNode(SgfTree *node)
 {
 	Node* parent, *newNode;
-	for (QMap <long, Node*>::iterator it = m_layers[node->moveIndex()-1].begin(); it!=m_layers[node->moveIndex()-1].end(); ++it)
+	foreach (Node* it, m_layers[node->moveIndex()-1])
 	{
-		if ( it.value()->sgfNode == node->parent() )
+		if ( it->sgfNode == node->parent() )
 		{
-			parent = it.value();
+			parent = it;
 		}
 	}
 	newNode = new Node;
@@ -244,12 +244,12 @@ void GameTree::setCurrentNode(SgfTree *node)
 	m_currRow = -1;
 	while (m_currRow == -1)
 	{
-		for (QMap<long, Node*>::iterator it = m_layers[m_currCol].begin(); it!=m_layers[m_currCol].end(); ++it)
+		foreach (Node *it, m_layers[m_currCol])
 		{
-			if (it.value()->sgfNode == node)
+			if (it->sgfNode == node)
 			{
-				m_currRow = it.key();
-				m_currNode = it.value();
+				m_currRow = it->pos;
+				m_currNode = it;
 			}
 		}
 		if (m_currRow == -1)
