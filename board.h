@@ -31,7 +31,7 @@ protected:
 	void drawMark(QPainter &p, Point pnt, Markup mark);
 	void drawLabels(QPainter &p);
 	void drawLines(QPainter &p);
-	void drawFilling(QPainter &p, QList <SgfVariant> pnts, const QBrush& brush);
+	void drawFilling(QPainter &p, QVector <QVector<qint8> > flags, qint8 flag, const QBrush& brush);
 	void drawLineElements(QPainter &p, QList<SgfVariant> vector, bool arrow);
 	void drawMoveNames();
 

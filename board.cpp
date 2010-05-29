@@ -11,8 +11,12 @@
 
 Board::Board()
 {
-   setMouseTracking(true);
-   m_boardColor = QColor(0xF5, 0xCD, 0x77);
+	setMouseTracking(true);
+	m_boardColor = QColor(0xF5, 0xCD, 0x77);
+	// TODO: make cool palette
+//	QPalette pal = palette();
+//	pal.setColor(QPalette::Background, QColor(0xF5, 0xCD, 0x77));
+//	setPalette(pal);
 }
 
 Board::~Board()
@@ -60,11 +64,9 @@ void Board::paintEvent(QPaintEvent* )
 	drawLineElements(p, m_game->currentMove()->attrValues("AR"), true);
 	drawLineElements(p, m_game->currentMove()->attrValues("LN"), false);
 
-	drawFilling(p, m_game->currentMove()->attrValues("VW"),
-				palette().background());
 	QColor clr = palette().color(QPalette::Window);
 	clr.setAlpha(127);
-	drawFilling(p, m_game->currentMove()->attrValues("DD"),
+	drawFilling(p, m_game->cellVisibleStates(), SgfGame::CMDimm,
 				QBrush(clr, Qt::Dense4Pattern));
 
 	// active position
@@ -79,6 +81,10 @@ void Board::paintEvent(QPaintEvent* )
 		QPointF delta(2, 2);
 		p.drawRect( QRectF(center-delta, center+delta) );
 	}
+
+	p.setCompositionMode(QPainter::CompositionMode_Clear);
+	drawFilling(p, m_game->cellVisibleStates(), SgfGame::CMInvisible,
+				palette().background());
 
 	p.end();
 #ifdef DEBUG
@@ -185,6 +191,7 @@ void Board::drawMarkup(QPainter &p)
 {
 	// markup
 	p.setPen(Qt::black);
+	p.setBrush(Qt::NoBrush);
 	QHash <Markup, QString>::const_iterator i;
 	for (i = markupNames.constBegin(); i != markupNames.constEnd(); ++i)
 	{
@@ -340,22 +347,18 @@ void Board::drawLabels(QPainter &p)
 	}
 }
 
-void Board::drawFilling(QPainter &p, QList<SgfVariant>pnts, const QBrush &brush)
+void Board::drawFilling(QPainter &p, QVector<QVector<qint8> >flags, qint8 flag, const QBrush &brush)
 {
+	p.setRenderHint(QPainter::Antialiasing, false);
 	p.setPen(Qt::black);
-	for (int i=0; i<pnts.size(); ++i)
+	for (int row = 0; row < m_game->size().height(); ++row)
 	{
-		if (pnts[i].type() == SgfVariant::Move)
+		for (int col = 0; col < m_game->size().width(); ++col)
 		{
-			p.fillRect(stoneRect(pnts[i].toMove()), brush);
-		}
-		else if (pnts[i].type() == SgfVariant::Compose)
-		{
-			QPair <SgfVariant, SgfVariant> pairVariants = pnts[i].toCompose();
-			QPointF delta(cellsize/2, cellsize/2);
-			QRectF rect( stoneToPoint(pairVariants.first.toMove()) - delta,
-						 stoneToPoint(pairVariants.second.toMove()) + delta);
-			p.fillRect(rect, brush);
+			if (flags[row][col] & flag)
+			{
+				p.fillRect(stoneRect(Point(col, row)), brush);
+			}
 		}
 	}
 }

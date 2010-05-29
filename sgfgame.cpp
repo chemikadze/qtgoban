@@ -18,6 +18,8 @@ SgfGame::SgfGame(QSize size /* =QSize(19, 19) */) : m_killed(3, 0), m_square(3, 
 	m_st = 0;
 	m_error = ENo;
 	m_turn = StoneBlack;
+
+	m_viewStack.push_back( QList<SgfVariant>() << SgfVariant(SgfVariant(0, 0), SgfVariant(size.width()-1, size.height()-1)) );
 }
 
 SgfGame::~SgfGame()
@@ -277,10 +279,26 @@ void SgfGame::stepForward(SgfTree *next)
 		}
 	}
 
-	QList <SgfVariant> vals = next->attrValues("DD"); // dim
+	QList <SgfVariant> vals = next->attrValues("DD"); // dimm
 	foreach (SgfVariant val, vals)
 	{
-		m_markup[ val.toMove().second ][ val.toMove().first ] = true;
+		if (val.type() == SgfVariant::Move)
+		{
+			Point pnt = val.toMove();
+			m_cellVisible[ pnt.second ][ pnt.second ] |= CMDimm;
+		}
+		else if (val.type() == SgfVariant::Compose)
+		{
+			QPair <SgfVariant, SgfVariant> compose = val.toCompose();
+			if (compose.first.type() == SgfVariant::Move && compose.second.type() == SgfVariant::Move)
+			{
+				Point from = compose.first.toMove();
+				Point to = compose.second.toMove();
+				for (int col=from.first; col<=to.first; ++col)
+					for (int row=from.second; row<=to.second; ++row)
+						m_cellVisible[ row ][ col ] |= CMDimm;
+			}
+		}
 	}
 
 	val = next->attrValue("PL");
@@ -288,7 +306,13 @@ void SgfGame::stepForward(SgfTree *next)
 	{
 		m_turn = val.toColor();
 	}
-
+	
+	vals = next->attrValues("VW"); // view region
+	if (!vals.isEmpty())
+	{
+		setView(vals);
+		m_viewStack.push_back(vals);
+	}
 }
 
 void SgfGame::stepBackward()
@@ -363,7 +387,23 @@ void SgfGame::stepBackward()
 	QList <SgfVariant> vals = m_current->attrValues("DD"); // dim
 	foreach (val, vals)
 	{
-		m_markup[ val.toMove().second ][ val.toMove().first ] = false;
+		if (val.type() == SgfVariant::Move)
+		{
+			Point pnt = val.toMove();
+			m_cellVisible[ pnt.second ][ pnt.second ] &= ~CMDimm;
+		}
+		else if (val.type() == SgfVariant::Compose)
+		{
+			QPair <SgfVariant, SgfVariant> compose = val.toCompose();
+			if (compose.first.type() == SgfVariant::Move && compose.second.type() == SgfVariant::Move)
+			{
+				Point from = compose.first.toMove();
+				Point to = compose.second.toMove();
+				for (int col=from.first; col<=to.first; ++col)
+					for (int row=from.second; row<=to.second; ++row)
+						m_cellVisible[ row ][ col ] &= ~CMDimm;
+			}
+		}
 	}
 
 	val = m_current->attrValue("PL");
@@ -371,8 +411,42 @@ void SgfGame::stepBackward()
 	{
 		m_turn = val.toColor();
 	}
+	
+	vals = m_current->attrValues("VW"); // view region
+	if (!vals.isEmpty())
+	{
+		m_viewStack.pop_back();
+		setView(m_viewStack.last());
+	}
 
 	m_current = m_current->parent();
+}
+
+void SgfGame::setView(QList<SgfVariant> regionList)
+{
+	for (int i=0; i<m_size.height(); ++i)
+		for (int j=0; j<m_size.width(); ++j)
+			m_cellVisible[i][j] |= CMInvisible;
+	for (int i=0; i<regionList.size(); ++i)
+	{
+		if (regionList[i].type() == SgfVariant::Move)
+		{
+			Point pnt = regionList[i].toMove();
+			m_cellVisible[ pnt.second ][ pnt.second ] &= ~CMInvisible;
+		}
+		else if (regionList[i].type() == SgfVariant::Compose)
+		{
+			QPair <SgfVariant, SgfVariant> compose = regionList[i].toCompose();
+			if (compose.first.type() == SgfVariant::Move && compose.second.type() == SgfVariant::Move)
+			{
+				Point from = compose.first.toMove();
+				Point to = compose.second.toMove();
+				for (int col=from.first; col<=to.first; ++col)
+					for (int row=from.second; row<=to.second; ++row)
+						m_cellVisible[ row ][ col ] &= ~CMInvisible;
+			}
+		}
+	}
 }
 
 bool SgfGame::setStone(Point p, StoneColor color, bool force /* = false*/)
@@ -969,7 +1043,7 @@ void SgfGame::resize(QSize s)
 {
 	m_size = s;
 	resizeMatrix(m_board, s, StoneVoid);
-	resizeMatrix(m_markup, s, false);
+	resizeMatrix(m_cellVisible, s, qint8(0x0));
 }
 
 void SgfGame::emitError(Error errorcode)

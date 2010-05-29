@@ -30,12 +30,14 @@ public:
 	// all except EBadSyntax and WrongGM are not fatal
 	enum Error { ENo, EBadAttrName, EBadSyntax, EWrongGM, EUnknownEncoding, EInvalidPoint };
 	enum MoveError {MENo, MESuicide, MEKo};
-	QVector <int> m_killed;
-	QVector <int> m_square;
+	enum CellMark { CMNone = 0x0, CMDimm = 0x1, CMInvisible = 0x2 };
 
 protected:
+	QVector <int> m_killed; // killed stones count
+	QVector <int> m_square;	// square allocated
 	QVector <QVector <StoneColor> > m_board;
-	QVector <QVector <bool> > m_markup;
+	QVector <QVector <qint8> > m_cellVisible; // CellMark, but need bit operations
+	QVector <QList <SgfVariant> > m_viewStack;
 	SgfTree *m_tree;
 	SgfTree *m_current;
 	QFile *m_io;
@@ -80,6 +82,8 @@ protected:
 
 	int fillGroup(qint8 col, qint8 row, StoneColor color);
 
+	void setView(QList <SgfVariant> regionList);
+
 signals:
 	void wrongValue(QString attrName, QString dataString);
 	void errorOccured(Error errorcode);
@@ -114,6 +118,8 @@ public:
 	bool validatePoint(Point point);
 
 	void setMarkup(qint8 col, qint8 row, Markup m);
+
+	inline QVector<QVector<qint8> > cellVisibleStates() { return m_cellVisible; }
 
 	void resize(QSize s);
 	void resize(qint8 col, qint8 row = -1);
