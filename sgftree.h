@@ -43,7 +43,7 @@ public:
 		m_rewrites.remove(it);
 	}
 
-	inline SgfVariant getMoveVariant()
+	inline /* orly? */ SgfVariant getMoveVariant()
 	{
 		SgfVariant var = m_attr.value("B");
 		if (var.type() == SgfVariant::Move)

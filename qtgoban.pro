@@ -6,7 +6,8 @@ HEADERS += sgftree.h \
     playerinput.h \
     abstractboard.h \
     board.h \
-    commentview.h
+    commentview.h \
+    processmatrix.h
 SOURCES += sgftree.cpp \
     sgfgame.cpp \
     sgfvariant.cpp \

@@ -1,11 +1,43 @@
 #include <QtCore/QQueue>
 #include <QtCore/QHash>
 #include "sgfgame.h"
+#include "processmatrix.h"
 
 const QHash <QString, SgfVariant::Type> SgfGame::m_typeHash = SgfGame::createSgfTypeHash();
 const QHash <SgfGame::Error, QString> SgfGame::m_errorStrings = SgfGame::createErrorStringsHash();
 const QHash <SgfGame::MoveError, QString> SgfGame::m_moveErrorStrings = SgfGame::createMoveErrorHash();
 
+template <typename T>
+class deleteBits
+{
+	T val;
+public:
+	inline deleteBits(const T mask)
+	{
+		val = mask;
+	}
+
+	inline void operator() (T& source)
+	{
+		source &= ~val;
+	}
+};
+
+template <typename T>
+class addBits
+{
+	T val;
+public:
+	inline addBits(const T mask)
+	{
+		val = mask;
+	}
+
+	inline void operator() (T& source)
+	{
+		source |= val;
+	}
+};
 
 SgfGame::SgfGame(QSize size /* =QSize(19, 19) */) : m_killed(3, 0), m_square(3, 0), m_size(0, 0)
 {
@@ -280,25 +312,9 @@ void SgfGame::stepForward(SgfTree *next)
 	}
 
 	QList <SgfVariant> vals = next->attrValues("DD"); // dimm
-	foreach (SgfVariant val, vals)
+	for (int i=0; i<vals.size(); ++i)
 	{
-		if (val.type() == SgfVariant::Move)
-		{
-			Point pnt = val.toMove();
-			m_cellVisible[ pnt.second ][ pnt.second ] |= CMDimm;
-		}
-		else if (val.type() == SgfVariant::Compose)
-		{
-			QPair <SgfVariant, SgfVariant> compose = val.toCompose();
-			if (compose.first.type() == SgfVariant::Move && compose.second.type() == SgfVariant::Move)
-			{
-				Point from = compose.first.toMove();
-				Point to = compose.second.toMove();
-				for (int col=from.first; col<=to.first; ++col)
-					for (int row=from.second; row<=to.second; ++row)
-						m_cellVisible[ row ][ col ] |= CMDimm;
-			}
-		}
+		processMatrix(m_cellVisible, vals[i], addBits<qint8>(CMDimm));
 	}
 
 	val = next->attrValue("PL");
@@ -384,27 +400,12 @@ void SgfGame::stepBackward()
 		}
 	}
 
-	QList <SgfVariant> vals = m_current->attrValues("DD"); // dim
-	foreach (val, vals)
+	QList <SgfVariant> vals = m_current->attrValues("DD"); // dimm
+	for (int i=0; i<vals.size(); ++i)
 	{
-		if (val.type() == SgfVariant::Move)
-		{
-			Point pnt = val.toMove();
-			m_cellVisible[ pnt.second ][ pnt.second ] &= ~CMDimm;
-		}
-		else if (val.type() == SgfVariant::Compose)
-		{
-			QPair <SgfVariant, SgfVariant> compose = val.toCompose();
-			if (compose.first.type() == SgfVariant::Move && compose.second.type() == SgfVariant::Move)
-			{
-				Point from = compose.first.toMove();
-				Point to = compose.second.toMove();
-				for (int col=from.first; col<=to.first; ++col)
-					for (int row=from.second; row<=to.second; ++row)
-						m_cellVisible[ row ][ col ] &= ~CMDimm;
-			}
-		}
+		processMatrix(m_cellVisible, vals[i], deleteBits<qint8>(CMDimm));
 	}
+
 
 	val = m_current->attrValue("PL");
 	if (val.type() == SgfVariant::Color)
@@ -429,23 +430,7 @@ void SgfGame::setView(QList<SgfVariant> regionList)
 			m_cellVisible[i][j] |= CMInvisible;
 	for (int i=0; i<regionList.size(); ++i)
 	{
-		if (regionList[i].type() == SgfVariant::Move)
-		{
-			Point pnt = regionList[i].toMove();
-			m_cellVisible[ pnt.second ][ pnt.second ] &= ~CMInvisible;
-		}
-		else if (regionList[i].type() == SgfVariant::Compose)
-		{
-			QPair <SgfVariant, SgfVariant> compose = regionList[i].toCompose();
-			if (compose.first.type() == SgfVariant::Move && compose.second.type() == SgfVariant::Move)
-			{
-				Point from = compose.first.toMove();
-				Point to = compose.second.toMove();
-				for (int col=from.first; col<=to.first; ++col)
-					for (int row=from.second; row<=to.second; ++row)
-						m_cellVisible[ row ][ col ] &= ~CMInvisible;
-			}
-		}
+		processMatrix(m_cellVisible, regionList[i], deleteBits<qint8>(CMInvisible));
 	}
 }
 
