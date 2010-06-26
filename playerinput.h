@@ -5,7 +5,7 @@
 #include "common.h"
 
 /*
-  Provides turn control.
+  Provides moving.
   */
 
 class PlayerInput

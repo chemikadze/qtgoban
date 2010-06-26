@@ -33,6 +33,10 @@ int main(int argc, char** argv)
 	qDebug() << t.elapsed() << "Parsing game tree...";
 	g.readGameFromBuffer();
 
+
+	qDebug() << t.elapsed() << "Clearing buffer...";
+	g.clearBuffer();
+
 	qDebug() << t.elapsed() << "Opened.";
 
 	GameTree tree;

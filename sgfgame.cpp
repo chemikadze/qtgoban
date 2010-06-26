@@ -61,9 +61,10 @@ SgfGame::~SgfGame()
 	delete m_tree;
 }
 
-/*
-  TODO: maybe create some pointers for comments/marks/etc?
-*/
+
+//  TODO: maybe create some pointers for comments/marks/etc?
+
+// TODO: wtf is japaneese and chineese rules?
 
 bool SgfGame::makeMove(qint8 col, qint8 row)
 {
@@ -98,7 +99,8 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 			m_board[row][col] = m_turn;
 			setKills(newNode);
 			// suicide
-			if (newNode->killed().isEmpty() && isDead(col, row))
+			if (!m_killStack.isEmpty() && m_killStack.last().first == newNode->moveIndex() &&
+				m_killStack.last().second.contains(QPair<Point, StoneColor>(Point(col,row), m_turn)))
 			{
 				m_board[row][col] = StoneVoid;
 				emitMoveError(MESuicide);
@@ -108,6 +110,22 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 			m_board[row][col] = StoneVoid;
 
 			m_current->addChild(newNode);
+
+			// ko check
+			SgfTree *current = m_current;
+			stepForward(newNode);
+			QVector <QVector <StoneColor> > curr_state = m_board;
+			while (m_current != m_tree)
+			{
+				stepBackward();
+				if (m_board == curr_state)
+				{
+					setCurrentMove(current);
+					m_current->removeChild(newNode);
+					emitMoveError(MEKo);
+					return false;
+				}
+			}
 		}
 		else
 		{
@@ -115,6 +133,7 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 		}
 	}
 	setCurrentMove(newNode);
+
 	return true;
 }
 
@@ -131,7 +150,14 @@ bool SgfGame::validatePoint(Point point)
 void SgfGame::validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const StoneColor killedColor)
 {
 	if ( validatePoint(col, row) && m_board[row][col]==killedColor && isDead(col, row))
-		node->addKilled(Point(col, row), killedColor);
+	{
+		if ( !m_killStack.size() || m_killStack.last().first != node->moveIndex())
+		{
+			m_killStack.push_back(QPair <qint8, QSet< QPair<Point, StoneColor> > >(node->moveIndex(),
+								  QSet< QPair<Point, StoneColor> >()));
+		}
+		m_killStack.last().second.insert(QPair<Point, StoneColor>(Point(col, row), killedColor));
+	}
 }
 
 void SgfGame::setKills(SgfTree *node)
@@ -158,7 +184,8 @@ void SgfGame::setKills(SgfTree *node)
 	//bottom
 	validateAndAddKilled(node, move.first, move.second+1, killColor);
 	// check suicide
-	if (node->killed().isEmpty())
+	if ((m_killStack.isEmpty() || m_killStack.last().first != node->moveIndex()) &&
+		isDead(move.first, move.second))
 	{
 		validateAndAddKilled(node, move.first, move.second, invertColor(killColor));
 	}
@@ -181,6 +208,7 @@ bool SgfGame::isDead(qint8 col, qint8 row)
 	{
 		// Python-style lol
 		// slow but readable
+		// TODO use const delta array!111
 		QVector < Point > points;
 		points << Point (q.first().first+1, q.first().second)
 			   << Point (q.first().first-1, q.first().second)
@@ -262,17 +290,16 @@ void SgfGame::stepForward(SgfTree *next)
 		{
 			m_board[p.second][p.first] = color;
 
-			if (next->killed().isEmpty())
-				setKills(next);
+			setKills(next);
 
 			typedef QPair <Point, StoneColor> Stone;
-			foreach (Stone killedStone, next->killed())
+			if (m_killStack.size() && m_killStack.last().first == m_current->moveIndex())
+				foreach (Stone killedStone, m_killStack.last().second)
 			{
 				int square = fillGroup(killedStone.first.first, killedStone.first.second, StoneVoid);
-				m_killed[color] += square;
+				m_killed[color] -= square;
 			}
 		}
-
 
 		if (color == StoneBlack)
 			m_turn = StoneWhite;
@@ -347,11 +374,15 @@ void SgfGame::stepBackward()
 		if (validatePoint(val.toMove())) // pass?
 		{
 			typedef QPair <Point, StoneColor> Stone;
-			foreach (Stone killedStone, m_current->killed())
+			if (m_killStack.size() && m_killStack.last().first == m_current->moveIndex())
+			{
+				foreach (Stone killedStone, m_killStack.last().second)
 			{
 				// TODO: 2 pairs one in another are horrible, need make special structure
 				int square = fillGroup(killedStone.first.first, killedStone.first.second, killedStone.second);
 				m_killed[killColor] -= square;
+			}
+			m_killStack.pop_back();
 			}
 
 			m_board[val.toMove().second][val.toMove().first] = StoneVoid;
@@ -393,10 +424,14 @@ void SgfGame::stepBackward()
 			}
 		}
 		// repair moves
-		typedef QPair <Point, StoneColor> RewritedStone;
-		foreach (RewritedStone pnt, m_current->rewrites())
+		if (m_rewriteStack.size() && m_rewriteStack.last().first == m_current->moveIndex())
 		{
-			setStone(pnt.first, pnt.second);
+			typedef QPair <Point, StoneColor> RewritedStone;
+			foreach (RewritedStone pnt, m_rewriteStack.last().second)
+			{
+				setStone(pnt.first, pnt.second, true); // we don't need remember rewrites
+			}
+			m_rewriteStack.pop_back();
 		}
 	}
 
@@ -445,7 +480,9 @@ bool SgfGame::setStone(qint8 col, qint8 row, StoneColor color, bool force /* = f
 	{
 		if (m_board[row][col] != StoneVoid && !force)
 		{
-			m_current->addRewrite(col, row, m_board[row][col]);
+			if (m_rewriteStack.isEmpty() || m_rewriteStack.last().first != m_current->moveIndex())
+				m_rewriteStack.push_back( QPair<qint8, QSet< QPair<Point, StoneColor> > >(m_current->moveIndex(), QSet< QPair<Point, StoneColor> >()) );
+			m_rewriteStack.last().second.insert( QPair<Point, StoneColor>(Point(col, row), m_board[row][col]));
 		}
 		m_board[row][col] = color;
 		return true;
@@ -782,6 +819,7 @@ QFile::FileError SgfGame::saveToFile(const QString& filename)
 		m_io->write(m_buffer);
 		m_io->close();
 	}
+	m_buffer.clear();
 	return m_io->error();
 }
 
@@ -801,7 +839,7 @@ void SgfGame::writeNodeToBuffer(SgfTree *node)
 			s_size = QString::number(m_size.width());
 		else
 			s_size = QString("%1:%2").arg(m_size.width()).arg(m_size.height());
-		// TODO: write that correct
+		// TODO: rewrite root properties saving correct
 		data = QString(";GM[1]FF[4]CA[%1]SZ[%2]ST[%3]AP[%4]").arg(m_encoding,
 																  s_size,
 																  QString::number(m_st),
@@ -1144,8 +1182,6 @@ QHash <QString, SgfVariant::Type> SgfGame::createSgfTypeHash()
 	typeHash["TW"] = SgfVariant::Move;
 	return typeHash;
 }
-
-
 
 QHash <SgfGame::MoveError, QString> SgfGame::createMoveErrorHash()
 {

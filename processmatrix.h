@@ -2,14 +2,18 @@
 #define PROCESSMATRIX_H
 
 #include <sgfvariant.h>
-/*
+
+/* functor looks like:
+
 template <typename T>
 class ProcessFunctor
 {
 public:
 	void operator() (T& source);
 };
+
 */
+
 template <typename T>
 class assignment
 {

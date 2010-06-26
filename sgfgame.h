@@ -33,11 +33,14 @@ public:
 	enum CellMark { CMNone = 0x0, CMDimm = 0x1, CMInvisible = 0x2 };
 
 protected:
-	QVector <int> m_killed; // killed stones count
+	QVector <int> m_killed; // killed (dead) stones count
 	QVector <int> m_square;	// square allocated
 	QVector <QVector <StoneColor> > m_board;
 	QVector <QVector <qint8> > m_cellVisible; // CellMark, but need bit operations
 	QVector <QList <SgfVariant> > m_viewStack;
+	// ( depth , [ ( (col,row), color) ] )
+	QVector <QPair <qint8, QSet< QPair<Point, StoneColor> > > > m_rewriteStack;
+	QVector <QPair <qint8, QSet< QPair<Point, StoneColor> > > > m_killStack;
 	SgfTree *m_tree;
 	SgfTree *m_current;
 	QFile *m_io;
@@ -95,7 +98,6 @@ signals:
 	void moveErrorOccured(QString s);
 
 public:
-
 	bool setCurrentMove(SgfTree* newCurr);
 
 	inline Error error() { return m_error; }
@@ -132,6 +134,7 @@ public:
 
 	QFile::FileError loadBufferFromFile(const QString& filename);
 	QString readEncodingFromBuffer();
+	inline void clearBuffer() { m_buffer.clear(); }
 	void encodeBuffer();
 	bool readGameFromBuffer();
 	QFile::FileError saveToFile(const QString& filename);

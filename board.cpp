@@ -254,7 +254,7 @@ void Board::drawMark(QPainter &p, Point pnt, Markup mark)
 	}
 	case MSelection:
 	{
-		// хз чо, хотябы так
+		// no standard for drawing this, i would like a green 'X'
 		p.setPen(Qt::green);
 		p.drawLine(point-QPointF(marksize, marksize), point+QPointF(marksize, marksize));
 		p.drawLine(point-QPointF(-marksize, marksize), point+QPointF(-marksize, marksize));
