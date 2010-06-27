@@ -39,8 +39,8 @@ protected:
 	QVector <QVector <qint8> > m_cellVisible; // CellMark, but need bit operations
 	QVector <QList <SgfVariant> > m_viewStack;
 	// ( depth , [ ( (col,row), color) ] )
-	QVector <QPair <qint8, QSet< QPair<Point, StoneColor> > > > m_rewriteStack;
-	QVector <QPair <qint8, QSet< QPair<Point, StoneColor> > > > m_killStack;
+	QVector <QPair <qint16, QSet< QPair<Point, StoneColor> > > > m_rewriteStack;
+	QVector <QPair <qint16, QSet< QPair<Point, StoneColor> > > > m_killStack;
 	SgfTree *m_tree;
 	SgfTree *m_current;
 	QFile *m_io;

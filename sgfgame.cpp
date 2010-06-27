@@ -153,7 +153,7 @@ void SgfGame::validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const St
 	{
 		if ( !m_killStack.size() || m_killStack.last().first != node->moveIndex())
 		{
-			m_killStack.push_back(QPair <qint8, QSet< QPair<Point, StoneColor> > >(node->moveIndex(),
+			m_killStack.push_back(QPair <qint16, QSet< QPair<Point, StoneColor> > >(node->moveIndex(),
 								  QSet< QPair<Point, StoneColor> >()));
 		}
 		m_killStack.last().second.insert(QPair<Point, StoneColor>(Point(col, row), killedColor));
@@ -481,7 +481,7 @@ bool SgfGame::setStone(qint8 col, qint8 row, StoneColor color, bool force /* = f
 		if (m_board[row][col] != StoneVoid && !force)
 		{
 			if (m_rewriteStack.isEmpty() || m_rewriteStack.last().first != m_current->moveIndex())
-				m_rewriteStack.push_back( QPair<qint8, QSet< QPair<Point, StoneColor> > >(m_current->moveIndex(), QSet< QPair<Point, StoneColor> >()) );
+				m_rewriteStack.push_back( QPair<qint16, QSet< QPair<Point, StoneColor> > >(m_current->moveIndex(), QSet< QPair<Point, StoneColor> >()) );
 			m_rewriteStack.last().second.insert( QPair<Point, StoneColor>(Point(col, row), m_board[row][col]));
 		}
 		m_board[row][col] = color;
