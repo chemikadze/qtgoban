@@ -49,7 +49,7 @@ SgfGame::SgfGame(QSize size /* =QSize(19, 19) */) : m_killed(3, 0), m_square(3, 
 	m_current = m_tree;
 	m_st = 0;
 	m_error = ENo;
-	m_turn = StoneBlack;
+	m_turn = cBlack;
 
 	m_viewStack.push_back( QList<SgfVariant>() << SgfVariant(SgfVariant(0, 0), SgfVariant(size.width()-1, size.height()-1)) );
 }
@@ -61,9 +61,6 @@ SgfGame::~SgfGame()
 	delete m_tree;
 }
 
-
-//  TODO: maybe create some pointers for comments/marks/etc?
-
 // TODO: wtf is japaneese and chineese rules?
 
 bool SgfGame::makeMove(qint8 col, qint8 row)
@@ -72,13 +69,13 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 	foreach (SgfTree* node, m_current->children())
 	{
 		SgfVariant v = node->attrValue("B");
-		if (m_turn == StoneBlack && v.type() == SgfVariant::Move && v.toMove() == Point(col, row))
+		if (m_turn == cBlack && v.type() == SgfVariant::tPoint && v.toPoint() == Point(col, row))
 		{
 			newNode = node;
 			break;
 		}
 		v = node->attrValue("W");
-		if (m_turn == StoneWhite && v.type() == SgfVariant::Move && v.toMove() == Point(col, row))
+		if (m_turn == cWhite && v.type() == SgfVariant::tPoint && v.toPoint() == Point(col, row))
 		{
 			newNode = node;
 			break;
@@ -87,11 +84,11 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 
 	if (!newNode)
 	{
-		if (m_board[row][col] == StoneVoid)
+		if (m_board[row][col] == cVoid)
 		{
 			newNode = new SgfTree(m_current);
 
-			if (m_turn == StoneBlack)
+			if (m_turn == cBlack)
 				newNode->setAttribute("B", SgfVariant(col, row));
 			else
 				newNode->setAttribute("W", SgfVariant(col, row));
@@ -100,21 +97,21 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 			setKills(newNode);
 			// suicide
 			if (!m_killStack.isEmpty() && m_killStack.last().first == newNode->moveIndex() &&
-				m_killStack.last().second.contains(QPair<Point, StoneColor>(Point(col,row), m_turn)))
+				m_killStack.last().second.contains(Stone(m_turn, Point(col,row))))
 			{
-				m_board[row][col] = StoneVoid;
+				m_board[row][col] = cVoid;
 				emitMoveError(MESuicide);
 				delete newNode;
 				return  false;
 			}
-			m_board[row][col] = StoneVoid;
+			m_board[row][col] = cVoid;
 
 			m_current->addChild(newNode);
 
 			// ko check
 			SgfTree *current = m_current;
 			stepForward(newNode);
-			QVector <QVector <StoneColor> > curr_state = m_board;
+			QVector <QVector <Color> > curr_state = m_board;
 			while (m_current != m_tree)
 			{
 				stepBackward();
@@ -144,19 +141,19 @@ bool SgfGame::validatePoint(qint8 col, qint8 row)
 
 bool SgfGame::validatePoint(Point point)
 {
-	return validatePoint(point.first, point.second);
+	return validatePoint(point.col, point.row);
 }
 
-void SgfGame::validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const StoneColor killedColor)
+void SgfGame::validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const Color killedColor)
 {
 	if ( validatePoint(col, row) && m_board[row][col]==killedColor && isDead(col, row))
 	{
 		if ( !m_killStack.size() || m_killStack.last().first != node->moveIndex())
 		{
-			m_killStack.push_back(QPair <qint16, QSet< QPair<Point, StoneColor> > >(node->moveIndex(),
-								  QSet< QPair<Point, StoneColor> >()));
+			m_killStack.push_back(QPair <qint16, QSet< Stone > >(node->moveIndex(),
+								  QSet<Stone>()));
 		}
-		m_killStack.last().second.insert(QPair<Point, StoneColor>(Point(col, row), killedColor));
+		m_killStack.last().second.insert(Stone(killedColor, Point(col, row)));
 	}
 }
 
@@ -164,37 +161,37 @@ void SgfGame::setKills(SgfTree *node)
 {
 	SgfVariant var;
 	var = node->attrValue("B");
-	StoneColor killColor = StoneWhite;
-	if (var.type() != SgfVariant::Move)
+	Color killColor = cWhite;
+	if (var.type() != SgfVariant::tPoint)
 	{
 		var = node->attrValue("W");
-		killColor = StoneBlack;
-		if (var.type() != SgfVariant::Move)
+		killColor = cBlack;
+		if (var.type() != SgfVariant::tPoint)
 			return;
 	}
 
-	Point move = var.toMove();
+	Point move = var.toPoint();
 
 	// right
-	validateAndAddKilled(node, move.first+1, move.second, killColor);
+	validateAndAddKilled(node, move.col+1, move.row, killColor);
 	//left
-	validateAndAddKilled(node, move.first-1, move.second, killColor);
+	validateAndAddKilled(node, move.col-1, move.row, killColor);
 	//top
-	validateAndAddKilled(node, move.first, move.second-1, killColor);
+	validateAndAddKilled(node, move.col, move.row-1, killColor);
 	//bottom
-	validateAndAddKilled(node, move.first, move.second+1, killColor);
+	validateAndAddKilled(node, move.col, move.row+1, killColor);
 	// check suicide
 	if ((m_killStack.isEmpty() || m_killStack.last().first != node->moveIndex()) &&
-		isDead(move.first, move.second))
+		isDead(move.col, move.row))
 	{
-		validateAndAddKilled(node, move.first, move.second, invertColor(killColor));
+		validateAndAddKilled(node, move.col, move.row, invertColor(killColor));
 	}
 }
 
 bool SgfGame::isDead(qint8 col, qint8 row)
 {
-	StoneColor color = m_board[row][col];
-	if (color == StoneVoid)
+	Color color = m_board[row][col];
+	if (color == cVoid)
 		return false;
 
 	QQueue < Point > q;
@@ -206,24 +203,18 @@ bool SgfGame::isDead(qint8 col, qint8 row)
 
 	while (!q.isEmpty())
 	{
-		// Python-style lol
-		// slow but readable
-		// TODO use const delta array!111
-		QVector < Point > points;
-		points << Point (q.first().first+1, q.first().second)
-			   << Point (q.first().first-1, q.first().second)
-			   << Point (q.first().first, q.first().second+1)
-			   << Point (q.first().first, q.first().second-1);
+		static QVector <Point> deltas = getUpDownLeftRight();
 
-		foreach (Point point, points)
+		foreach (Point point, deltas)
 		{
-			if ( validatePoint(point) && !matrix[point.second][point.first] )
+			point = Point(col, row) + point;
+			if ( validatePoint(point) && !matrix[point.row][point.col] )
 			{
-				if (m_board[point.second][point.first] == color)
+				if (m_board[point.row][point.col] == color)
 					q.enqueue( point );
-				else if (m_board[point.second][point.first] == StoneVoid)
+				else if (m_board[point.row][point.col] == cVoid)
 					return false;
-				matrix[point.second][point.first] = 1;
+				matrix[point.row][point.col] = 1;
 			}
 		}
 		q.dequeue();
@@ -231,12 +222,12 @@ bool SgfGame::isDead(qint8 col, qint8 row)
 	return true;
 }
 
-int SgfGame::fillGroup(qint8 col, qint8 row, StoneColor fillColor)
+int SgfGame::fillGroup(qint8 col, qint8 row, Color fillColor)
 {
 	int res = 0;
 	QQueue < Point > q;
 	QVector < QVector<qint8> > matrix;
-	StoneColor color = m_board[row][col];
+	Color color = m_board[row][col];
 
 	resizeMatrix(matrix, m_size, qint8(0));
 	matrix[row][col] = 1;
@@ -247,21 +238,21 @@ int SgfGame::fillGroup(qint8 col, qint8 row, StoneColor fillColor)
 		// Python-style lol
 		// slow but readable
 		QVector < Point > points;
-		points << Point (q.first().first+1, q.first().second)
-			   << Point (q.first().first-1, q.first().second)
-			   << Point (q.first().first, q.first().second+1)
-			   << Point (q.first().first, q.first().second-1);
+		points << Point (q.first().col+1, q.first().row)
+			   << Point (q.first().col-1, q.first().row)
+			   << Point (q.first().col, q.first().row+1)
+			   << Point (q.first().col, q.first().row-1);
 
 		foreach (Point point, points)
 		{
-			if ( validatePoint(point) && !matrix[point.second][point.first] )
+			if ( validatePoint(point) && !matrix[point.row][point.col] )
 			{
-				if (m_board[point.second][point.first] == color)
+				if (m_board[point.row][point.col] == color)
 					q.enqueue( point );
-				matrix[point.second][point.first] = 1;
+				matrix[point.row][point.col] = 1;
 			}
 		}
-		m_board[q.first().second][q.first().first] = fillColor;
+		m_board[q.first().row][q.first().col] = fillColor;
 		++res;
 		q.dequeue();
 	}
@@ -270,68 +261,65 @@ int SgfGame::fillGroup(qint8 col, qint8 row, StoneColor fillColor)
 
 void SgfGame::stepForward(SgfTree *next)
 {
-	//TODO: Full support of attributes
-
 	m_current = next;
 
-	StoneColor color = StoneBlack;
+	Color color = cBlack;
 	SgfVariant val = next->attrValue("B");
-	if (val.type() != SgfVariant::Move)
+	if (val.type() != SgfVariant::tPoint)
 	{
 		val = next->attrValue("W");
-		color = StoneWhite;
+		color = cWhite;
 	}
 
-	if (val.type() == SgfVariant::Move)
+	if (val.type() == SgfVariant::tPoint)
 	{
 		// make move
-		Point p = val.toMove();
+		Point p = val.toPoint();
 		if (validatePoint(p)) // pass?
 		{
-			m_board[p.second][p.first] = color;
+			m_board[p.row][p.col] = color;
 
 			setKills(next);
 
-			typedef QPair <Point, StoneColor> Stone;
 			if (m_killStack.size() && m_killStack.last().first == m_current->moveIndex())
 				foreach (Stone killedStone, m_killStack.last().second)
-			{
-				int square = fillGroup(killedStone.first.first, killedStone.first.second, StoneVoid);
-				m_killed[color] -= square;
-			}
+				{
+					int square = fillGroup(killedStone.point.col, killedStone.point.row, cVoid);
+					m_killed[color] -= square;
+				}
 		}
 
-		if (color == StoneBlack)
-			m_turn = StoneWhite;
+		if (color == cBlack)
+			m_turn = cWhite;
 		else
-			m_turn = StoneBlack;
+			m_turn = cBlack;
 	}
 	else
 	{
-		static QHash <QString, StoneColor> w;
+		static QHash <QString, Color> w;
 		if (w.isEmpty())
 		{
-			w.insert("AW", StoneWhite);
-			w.insert("AB", StoneBlack);
-			w.insert("AE", StoneVoid);
+			w.insert("AW", cWhite);
+			w.insert("AB", cBlack);
+			w.insert("AE", cVoid);
 		}
 
-		for (QHash<QString, StoneColor>::const_iterator it = w.constBegin(); it != w.constEnd(); ++it)
+		for (QHash<QString, Color>::const_iterator it = w.constBegin(); it != w.constEnd(); ++it)
 		{
 			QList <SgfVariant> vals = next->attrValues(it.key());
 			foreach (val, vals)
 			{
-				if (val.type() == SgfVariant::Move)
-					setStone(val.toMove(), it.value());
-				else if (val.type() == SgfVariant::Compose &&
-						 val.toCompose().first.type() == SgfVariant::Move &&
-						 val.toCompose().second.type() == SgfVariant::Move )
+				if (val.type() == SgfVariant::tPoint)
+					setStone(val.toPoint(), it.value());
+				else if (val.type() == SgfVariant::tCompose &&
+						 val.toCompose().first.type() == SgfVariant::tPoint &&
+						 val.toCompose().second.type() == SgfVariant::tPoint )
 					{
 						Point leftUp, rightDn;
-						leftUp = val.toCompose().first.toMove();
-						rightDn = val.toCompose().second.toMove();
-						for (int x = leftUp.first; x<=rightDn.first; ++x)
-							for (int y = leftUp.second; y<=rightDn.second; ++y)
+						leftUp = val.toCompose().first.toPoint();
+						rightDn = val.toCompose().second.toPoint();
+						for (int x = leftUp.col; x<=rightDn.col; ++x)
+							for (int y = leftUp.row; y<=rightDn.row; ++y)
 								setStone(x, y, it.value());
 					}
 			}
@@ -345,7 +333,7 @@ void SgfGame::stepForward(SgfTree *next)
 	}
 
 	val = next->attrValue("PL");
-	if (val.type() == SgfVariant::Color)
+	if (val.type() == SgfVariant::tColor)
 	{
 		m_turn = val.toColor();
 	}
@@ -356,42 +344,44 @@ void SgfGame::stepForward(SgfTree *next)
 		setView(vals);
 		m_viewStack.push_back(vals);
 	}
+
+	setLabels(m_current);
+	setMarks(m_current);
+	setLines(m_current);
 }
 
 void SgfGame::stepBackward()
 {
-	StoneColor killColor = StoneWhite;
+	Color killColor = cWhite;
 	SgfVariant val = m_current->attrValue("B");
-	if (val.type() != SgfVariant::Move)
+	if (val.type() != SgfVariant::tPoint)
 	{
 		val = m_current->attrValue("W");
-		killColor = StoneBlack;
+		killColor = cBlack;
 	}
 
-	if (val.type() == SgfVariant::Move)
+	if (val.type() == SgfVariant::tPoint)
 	{
 		// delete move
-		if (validatePoint(val.toMove())) // pass?
+		if (validatePoint(val.toPoint())) // pass?
 		{
-			typedef QPair <Point, StoneColor> Stone;
 			if (m_killStack.size() && m_killStack.last().first == m_current->moveIndex())
 			{
 				foreach (Stone killedStone, m_killStack.last().second)
 			{
-				// TODO: 2 pairs one in another are horrible, need make special structure
-				int square = fillGroup(killedStone.first.first, killedStone.first.second, killedStone.second);
+				int square = fillGroup(killedStone.point.col, killedStone.point.row, killedStone.color);
 				m_killed[killColor] -= square;
 			}
 			m_killStack.pop_back();
 			}
 
-			m_board[val.toMove().second][val.toMove().first] = StoneVoid;
+			m_board[val.toPoint().row][val.toPoint().col] = cVoid;
 		}
 
-		if (killColor == StoneBlack)
-			m_turn = StoneWhite;
+		if (killColor == cBlack)
+			m_turn = cWhite;
 		else
-			m_turn = StoneBlack;
+			m_turn = cBlack;
 	}
 	else
 	{
@@ -408,28 +398,27 @@ void SgfGame::stepBackward()
 			QList <SgfVariant> vals = m_current->attrValues(*it);
 			foreach (val, vals)
 			{
-				if (val.type() == SgfVariant::Move)
-					setStone(val.toMove(), StoneVoid, true);
-				else if (val.type() == SgfVariant::Compose &&
-						 val.toCompose().first.type() == SgfVariant::Move &&
-						 val.toCompose().second.type() == SgfVariant::Move )
+				if (val.type() == SgfVariant::tPoint)
+					setStone(val.toPoint(), cVoid, true);
+				else if (val.type() == SgfVariant::tCompose &&
+						 val.toCompose().first.type() == SgfVariant::tPoint &&
+						 val.toCompose().second.type() == SgfVariant::tPoint )
 					{
 						Point leftUp, rightDn;
-						leftUp = val.toCompose().first.toMove();
-						rightDn = val.toCompose().second.toMove();
-						for (int x = leftUp.first; x<=rightDn.first; ++x)
-							for (int y = leftUp.second; y<=rightDn.second; ++y)
-								setStone(x, y, StoneVoid, true);
+						leftUp = val.toCompose().first.toPoint();
+						rightDn = val.toCompose().second.toPoint();
+						for (int x = leftUp.col; x<=rightDn.col; ++x)
+							for (int y = leftUp.row; y<=rightDn.row; ++y)
+								setStone(x, y, cVoid, true);
 					}
 			}
 		}
 		// repair moves
 		if (m_rewriteStack.size() && m_rewriteStack.last().first == m_current->moveIndex())
 		{
-			typedef QPair <Point, StoneColor> RewritedStone;
-			foreach (RewritedStone pnt, m_rewriteStack.last().second)
+			foreach (Stone pnt, m_rewriteStack.last().second)
 			{
-				setStone(pnt.first, pnt.second, true); // we don't need remember rewrites
+				setStone(pnt.point, pnt.color, true); // we don't need remember rewrites
 			}
 			m_rewriteStack.pop_back();
 		}
@@ -443,7 +432,7 @@ void SgfGame::stepBackward()
 
 
 	val = m_current->attrValue("PL");
-	if (val.type() == SgfVariant::Color)
+	if (val.type() == SgfVariant::tColor)
 	{
 		m_turn = val.toColor();
 	}
@@ -455,7 +444,56 @@ void SgfGame::stepBackward()
 		setView(m_viewStack.last());
 	}
 
+// now moved to parent node
 	m_current = m_current->parent();
+
+	setMarks(m_current);
+	setLabels(m_current);
+	setLines(m_current);
+}
+
+void SgfGame::setLabels(SgfTree *node)
+{
+	m_labels.clear();
+	foreach (SgfVariant var, node->attrValues("LB"))
+	{
+		if (var.type() == SgfVariant::tCompose)
+		{
+			QPair <SgfVariant, SgfVariant> pairValues = var.toCompose();
+			if (pairValues.first.type() == SgfVariant::tPoint && pairValues.second.type() == SgfVariant::tSimpleText)
+			{
+				insert(m_labels, Label(pairValues.second.toString(),
+									   Point(pairValues.first.toPoint().col,
+											 pairValues.first.toPoint().row)));
+			}
+		}
+	}
+}
+
+void SgfGame::setMarks(SgfTree *node)
+{
+	processMatrix(m_markup, assignment<Markup>(mVoid));
+	for (QHash<QString, Markup>::const_iterator i = namesMarkup.constBegin();
+		 i != namesMarkup.constEnd(); ++i)
+		foreach (SgfVariant var, node->attrValues(i.key()))
+			processMatrix(m_markup, var, assignment<Markup>(i.value()));
+}
+
+void SgfGame::setLines(SgfTree *node)
+{
+	m_lines.clear();
+	foreach (SgfVariant var, node->attrValues("AR"))
+	{
+		insert(m_lines, Line(var.toCompose().first.toPoint(),
+							 var.toCompose().second.toPoint(),
+							 lsArrow));
+	}
+	foreach (SgfVariant var, node->attrValues("LN"))
+	{
+		insert(m_lines, Line(var.toCompose().first.toPoint(),
+							 var.toCompose().second.toPoint(),
+							 lsLine));
+	}
 }
 
 void SgfGame::setView(QList<SgfVariant> regionList)
@@ -469,20 +507,20 @@ void SgfGame::setView(QList<SgfVariant> regionList)
 	}
 }
 
-bool SgfGame::setStone(Point p, StoneColor color, bool force /* = false*/)
+bool SgfGame::setStone(Point p, Color color, bool force /* = false*/)
 {
-	return setStone(p.first, p.second, color, force);
+	return setStone(p.col, p.row, color, force);
 }
 
-bool SgfGame::setStone(qint8 col, qint8 row, StoneColor color, bool force /* = false*/)
+bool SgfGame::setStone(qint8 col, qint8 row, Color color, bool force /* = false*/)
 {
 	if (validatePoint(col, row))
 	{
-		if (m_board[row][col] != StoneVoid && !force)
+		if (m_board[row][col] != cVoid && !force)
 		{
 			if (m_rewriteStack.isEmpty() || m_rewriteStack.last().first != m_current->moveIndex())
-				m_rewriteStack.push_back( QPair<qint16, QSet< QPair<Point, StoneColor> > >(m_current->moveIndex(), QSet< QPair<Point, StoneColor> >()) );
-			m_rewriteStack.last().second.insert( QPair<Point, StoneColor>(Point(col, row), m_board[row][col]));
+				m_rewriteStack.push_back( QPair<qint16, QSet< Stone > >(m_current->moveIndex(), QSet< Stone >()) );
+			m_rewriteStack.last().second.insert( Stone(m_board[row][col], Point(col, row)));
 		}
 		m_board[row][col] = color;
 		return true;
@@ -554,14 +592,13 @@ bool SgfGame::setCurrentMove(SgfTree *newCurr)
 	while (m_current != newCurr);
 
 	m_current = newCurr;
-	m_comment = m_current->attrValue("C").toString();
 	emit currentNodeChanged(m_current);
 	return true; // false if hasn't found
 }
 
 void SgfGame::setMarkup(qint8 col, qint8 row, Markup m)
 {
-	if (m!=MVoid)
+	if (m!=mVoid)
 	{
 		if (markupNames.contains(m))
 			m_current->attributes().insertMulti( markupNames.value(m), SgfVariant(col, row) );
@@ -578,7 +615,7 @@ void SgfGame::setMarkup(qint8 col, qint8 row, Markup m)
 
 bool SgfGame::canMove(qint8 col, qint8 row)
 {
-	return m_board[row][col] == StoneVoid;
+	return m_board[row][col] == cVoid;
 }
 
 QFile::FileError SgfGame::loadBufferFromFile(const QString& filename)
@@ -772,7 +809,7 @@ SgfTree* SgfGame::readNodeFromBuffer(SgfTree *parent /*=NULL*/)
 						++pos;
 
 					SgfVariant value = strToAttrValue(attrName, data);
-					if ( value.type() == SgfVariant::None && value.type() != m_typeHash.value(attrName) )
+					if ( value.type() == SgfVariant::tNone && value.type() != m_typeHash.value(attrName) )
 						emit wrongValue(attrName, data);
 					else
 					{
@@ -833,7 +870,7 @@ void SgfGame::writeNodeToBuffer(SgfTree *node)
 	m_buffer.append("(");
 	if (node == m_tree)
 	{
-		// maybe FF != 4 will be after
+		// converting to FF4, we are not necrofils
 		QString s_size, data;
 		if (m_size.height() == m_size.width())
 			s_size = QString::number(m_size.width());
@@ -882,23 +919,23 @@ SgfVariant SgfGame::strToAttrValue(const QString& attr, const QString& data)
 	SgfVariant::Type type = m_typeHash.value(attr);
 	SgfVariant ret;
 	bool ok = true;
-	if (type == SgfVariant::Number && attr == "SZ")
+	if (type == SgfVariant::tNumber && attr == "SZ")
 	{
 		data.toInt(&ok);
 		if (!ok)
-			type = SgfVariant::Compose;
+			type = SgfVariant::tCompose;
 	}
 	switch (type)
 	{
-	case SgfVariant::Number:
+	case SgfVariant::tNumber:
 		ret = SgfVariant(data.toInt(&ok));
 		break;
 
-	case SgfVariant::Real:
+	case SgfVariant::tReal:
 		ret = SgfVariant(data.toDouble(&ok));
 		break;
 
-	case SgfVariant::Double:
+	case SgfVariant::tDouble:
 		if (data.size() == 1)
 		{
 			if (data[0] == '2')
@@ -910,30 +947,30 @@ SgfVariant SgfGame::strToAttrValue(const QString& attr, const QString& data)
 		}
 		break;
 
-	case SgfVariant::Color:
+	case SgfVariant::tColor:
 		if (data.size() == 1)
 		{
 			if (data[0] == 'B')
-				ret = SgfVariant(StoneBlack);
+				ret = SgfVariant(cBlack);
 			else if (data[0] == 'W')
-				ret = SgfVariant(StoneWhite);
+				ret = SgfVariant(cWhite);
 			else if (data[0] == '1')
-				ret = SgfVariant(StoneWhite);
+				ret = SgfVariant(cWhite);
 			else if (data[0] == '2')
-				ret = SgfVariant(StoneBlack);
+				ret = SgfVariant(cBlack);
 			else
 				ok = false;
 		}
 		break;
 
-	case SgfVariant::SimpleText:
+	case SgfVariant::tSimpleText:
 	{
 		QString p_data = data;
 		p_data.replace('\n', "").replace('\r', "").replace(QRegExp("\\(\\:|\\\\|\\])"), "\\1");
 		ret = SgfVariant(p_data, true);
 		break;
 	}
-	case SgfVariant::Text:
+	case SgfVariant::tText:
 	{
 		QString p_data = data;
 		p_data.replace(QRegExp("\\(\\:|\\\\|\\])"), "\\1");
@@ -941,35 +978,37 @@ SgfVariant SgfGame::strToAttrValue(const QString& attr, const QString& data)
 		break;
 	}
 
-	case SgfVariant::Move:	
+	case SgfVariant::tPoint:
 	{
 		ret = SgfVariant::strToMove(data);
-		Point move = ret.toMove();
-		if ( m_size.width() <= move.first || m_size.height() <= move.second )
-			ret = SgfVariant(-1, -1);
-		ok = ret.type() == SgfVariant::Move;
+		Point move = ret.toPoint();
+		if ( m_size.width() <= move.col || m_size.height() <= move.row )
+			ret = SgfVariant(Point::pass());
+		ok = ret.type() == SgfVariant::tPoint;
 		if (ok)
 			break;
 	}
 
-	case SgfVariant::Compose:
+	case SgfVariant::tCompose:
 	{
 		QPair <QString,QString> dataPair = splitCompose(data);
 		QPair <SgfVariant,SgfVariant> val;
 		if (attr == "AR" || attr == "LN" || attr == "AB" || attr == "AW" || attr == "AE" ||
-			markupNames.key(attr, MVoid)!=MVoid || attr == "VW" || attr == "TW" || attr == "TB" || attr == "DD")
+			markupNames.key(attr, mVoid)!=mVoid || attr == "VW" || attr == "TW" || attr == "TB" || attr == "DD")
 		{
 			val.first = SgfVariant::strToMove(dataPair.first);
 			val.second = SgfVariant::strToMove(dataPair.second);
-			ok = val.first.type() == SgfVariant::Move &&
-				 val.second.type() == SgfVariant::Move;
+			ok = val.first.type() == SgfVariant::tPoint &&
+				 val.second.type() == SgfVariant::tPoint &&
+				 validatePoint(val.first.toPoint()) &&
+				 validatePoint(val.second.toPoint());
 			if (ok)
 				ret = SgfVariant(val);
 		}
 		else if (attr == "LB")
 		{
 			val.first = SgfVariant::strToMove(dataPair.first);
-			ok = val.first.type() == SgfVariant::Move;
+			ok = val.first.type() == SgfVariant::tPoint && validatePoint(val.first.toPoint());
 			if (!ok)
 				break;
 			val.second = SgfVariant(dataPair.second, true);
@@ -1043,9 +1082,9 @@ void SgfGame::setRootAttr(const QString &attr, const SgfVariant &data)
 {
 	if (attr == "SZ")
 	{
-		if (data.type() == SgfVariant::Number)
+		if (data.type() == SgfVariant::tNumber)
 			resize(data.toNumber());
-		else if (data.type() == SgfVariant::Compose)
+		else if (data.type() == SgfVariant::tCompose)
 			resize(data.toCompose().first.toNumber(),
 				   data.toCompose().second.toNumber());
 	}
@@ -1065,8 +1104,9 @@ void SgfGame::resize(qint8 col, qint8 row /*=-1*/)
 void SgfGame::resize(QSize s)
 {
 	m_size = s;
-	resizeMatrix(m_board, s, StoneVoid);
+	resizeMatrix(m_board, s, cVoid);
 	resizeMatrix(m_cellVisible, s, qint8(0x0));
+	resizeMatrix(m_markup, s, mVoid);
 }
 
 void SgfGame::emitError(Error errorcode)
@@ -1080,12 +1120,6 @@ void SgfGame::emitMoveError(MoveError errcode)
 {
 	emit moveErrorOccured(errcode);
 	emit moveErrorOccured(moveErrorToString(errcode));
-}
-
-void SgfGame::setComment(const QString &comment)
-{
-	m_comment = comment;
-	m_current->setAttribute("C", comment);
 }
 
 QHash <SgfGame::Error, QString> SgfGame::createErrorStringsHash()
@@ -1105,81 +1139,81 @@ QHash <QString, SgfVariant::Type> SgfGame::createSgfTypeHash()
 {
 	QHash <QString, SgfVariant::Type> typeHash;
 	// Move
-	typeHash["B" ] = SgfVariant::Move;
-	typeHash["KO"] = SgfVariant::None;
-	typeHash["MN"] = SgfVariant::Number;
-	typeHash["W" ] = SgfVariant::Move;
+	typeHash["B" ] = SgfVariant::tPoint;
+	typeHash["KO"] = SgfVariant::tNone;
+	typeHash["MN"] = SgfVariant::tNumber;
+	typeHash["W" ] = SgfVariant::tPoint;
 	// Setup
-	typeHash["AB"] = SgfVariant::Move;
-	typeHash["AE"] = SgfVariant::Move;
-	typeHash["AW"] = SgfVariant::Move;
-	typeHash["PL"] = SgfVariant::Color;
+	typeHash["AB"] = SgfVariant::tPoint;
+	typeHash["AE"] = SgfVariant::tPoint;
+	typeHash["AW"] = SgfVariant::tPoint;
+	typeHash["PL"] = SgfVariant::tColor;
 	// Node annotation
-	typeHash["C" ] = SgfVariant::Text;
-	typeHash["DM"] = SgfVariant::Double;
-	typeHash["GB"] = SgfVariant::Double;
-	typeHash["GW"] = SgfVariant::Double;
-	typeHash["HO"] = SgfVariant::Double;
-	typeHash["N" ] = SgfVariant::SimpleText;
-	typeHash["UC"] = SgfVariant::Double;
-	typeHash["V" ] = SgfVariant::Real;
+	typeHash["C" ] = SgfVariant::tText;
+	typeHash["DM"] = SgfVariant::tDouble;
+	typeHash["GB"] = SgfVariant::tDouble;
+	typeHash["GW"] = SgfVariant::tDouble;
+	typeHash["HO"] = SgfVariant::tDouble;
+	typeHash["N" ] = SgfVariant::tSimpleText;
+	typeHash["UC"] = SgfVariant::tDouble;
+	typeHash["V" ] = SgfVariant::tReal;
 	// Move annotation
-	typeHash["BM"] = SgfVariant::Double;
-	typeHash["DO"] = SgfVariant::None;
-	typeHash["IT"] = SgfVariant::None;
-	typeHash["TE"] = SgfVariant::Double;
+	typeHash["BM"] = SgfVariant::tDouble;
+	typeHash["DO"] = SgfVariant::tNone;
+	typeHash["IT"] = SgfVariant::tNone;
+	typeHash["TE"] = SgfVariant::tDouble;
 	// Markup
-	typeHash["AR"] = SgfVariant::Compose;
-	typeHash["CR"] = SgfVariant::Move;
-	typeHash["DD"] = SgfVariant::Move;
-	typeHash["LB"] = SgfVariant::Compose;
-	typeHash["LN"] = SgfVariant::Compose;
-	typeHash["MA"] = SgfVariant::Move;
-	typeHash["SL"] = SgfVariant::Move;
-	typeHash["SQ"] = SgfVariant::Move;
-	typeHash["TR"] = SgfVariant::Move;
+	typeHash["AR"] = SgfVariant::tCompose;
+	typeHash["CR"] = SgfVariant::tPoint;
+	typeHash["DD"] = SgfVariant::tPoint;
+	typeHash["LB"] = SgfVariant::tCompose;
+	typeHash["LN"] = SgfVariant::tCompose;
+	typeHash["MA"] = SgfVariant::tPoint;
+	typeHash["SL"] = SgfVariant::tPoint;
+	typeHash["SQ"] = SgfVariant::tPoint;
+	typeHash["TR"] = SgfVariant::tPoint;
 	// Root
-	typeHash["AP"] = SgfVariant::Compose;
-	typeHash["CA"] = SgfVariant::SimpleText;
-	typeHash["FF"] = SgfVariant::Number;
-	typeHash["GM"] = SgfVariant::Number;
-	typeHash["ST"] = SgfVariant::Number;
-	typeHash["SZ"] = SgfVariant::Number;
+	typeHash["AP"] = SgfVariant::tCompose;
+	typeHash["CA"] = SgfVariant::tSimpleText;
+	typeHash["FF"] = SgfVariant::tNumber;
+	typeHash["GM"] = SgfVariant::tNumber;
+	typeHash["ST"] = SgfVariant::tNumber;
+	typeHash["SZ"] = SgfVariant::tNumber;
 	// Info
-	typeHash["BR"] = SgfVariant::SimpleText;
-	typeHash["BT"] = SgfVariant::SimpleText;
-	typeHash["CP"] = SgfVariant::SimpleText;
-	typeHash["DT"] = SgfVariant::SimpleText;
-	typeHash["EV"] = SgfVariant::SimpleText;
-	typeHash["GN"] = SgfVariant::SimpleText;
-	typeHash["GC"] = SgfVariant::Text;
-	typeHash["ON"] = SgfVariant::SimpleText;
-	typeHash["OT"] = SgfVariant::SimpleText;
-	typeHash["PB"] = SgfVariant::SimpleText;
-	typeHash["PC"] = SgfVariant::SimpleText;
-	typeHash["PW"] = SgfVariant::SimpleText;
-	typeHash["RE"] = SgfVariant::SimpleText;
-	typeHash["RO"] = SgfVariant::SimpleText;
-	typeHash["RU"] = SgfVariant::SimpleText;
-	typeHash["SO"] = SgfVariant::SimpleText;
-	typeHash["TM"] = SgfVariant::Real;
-	typeHash["US"] = SgfVariant::SimpleText;
-	typeHash["WR"] = SgfVariant::SimpleText;
-	typeHash["WT"] = SgfVariant::SimpleText;
+	typeHash["BR"] = SgfVariant::tSimpleText;
+	typeHash["BT"] = SgfVariant::tSimpleText;
+	typeHash["CP"] = SgfVariant::tSimpleText;
+	typeHash["DT"] = SgfVariant::tSimpleText;
+	typeHash["EV"] = SgfVariant::tSimpleText;
+	typeHash["GN"] = SgfVariant::tSimpleText;
+	typeHash["GC"] = SgfVariant::tText;
+	typeHash["ON"] = SgfVariant::tSimpleText;
+	typeHash["OT"] = SgfVariant::tSimpleText;
+	typeHash["PB"] = SgfVariant::tSimpleText;
+	typeHash["PC"] = SgfVariant::tSimpleText;
+	typeHash["PW"] = SgfVariant::tSimpleText;
+	typeHash["RE"] = SgfVariant::tSimpleText;
+	typeHash["RO"] = SgfVariant::tSimpleText;
+	typeHash["RU"] = SgfVariant::tSimpleText;
+	typeHash["SO"] = SgfVariant::tSimpleText;
+	typeHash["TM"] = SgfVariant::tReal;
+	typeHash["US"] = SgfVariant::tSimpleText;
+	typeHash["WR"] = SgfVariant::tSimpleText;
+	typeHash["WT"] = SgfVariant::tSimpleText;
 	// Timing
-	typeHash["BL"] = SgfVariant::Real;
-	typeHash["OB"] = SgfVariant::Number;
-	typeHash["OW"] = SgfVariant::Number;
-	typeHash["WL"] = SgfVariant::Real;
+	typeHash["BL"] = SgfVariant::tReal;
+	typeHash["OB"] = SgfVariant::tNumber;
+	typeHash["OW"] = SgfVariant::tNumber;
+	typeHash["WL"] = SgfVariant::tReal;
 	// Misc
-	typeHash["FG"] = SgfVariant::Compose;
-	typeHash["PM"] = SgfVariant::Number;
-	typeHash["VW"] = SgfVariant::Move;
+	typeHash["FG"] = SgfVariant::tCompose;
+	typeHash["PM"] = SgfVariant::tNumber;
+	typeHash["VW"] = SgfVariant::tPoint;
 	// Go
-	typeHash["HA"] = SgfVariant::Number;
-	typeHash["KM"] = SgfVariant::Real;
-	typeHash["TB"] = SgfVariant::Move;
-	typeHash["TW"] = SgfVariant::Move;
+	typeHash["HA"] = SgfVariant::tNumber;
+	typeHash["KM"] = SgfVariant::tReal;
+	typeHash["TB"] = SgfVariant::tPoint;
+	typeHash["TW"] = SgfVariant::tPoint;
 	return typeHash;
 }
 

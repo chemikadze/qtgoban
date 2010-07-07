@@ -20,4 +20,9 @@ SOURCES += sgftree.cpp \
     commentview.cpp
 OTHER_FILES += output.sgf \
     input.sgf
-DEFINES += DEBUG
+OBJECTS_DIR = ./obj
+MOC_DIR = ./moc
+debug {
+	DEFINES += DEBUG
+	CONFIG += warn_on
+}

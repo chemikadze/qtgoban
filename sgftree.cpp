@@ -1,7 +1,8 @@
 #include "sgftree.h"
 
-SgfTree::SgfTree(SgfTree *p/* = NULL*/) : m_parent(p)
+SgfTree::SgfTree(SgfTree *p/* = NULL*/)
 {
+	m_parent = p;
 	if ( p )
 		m_moveIndex = m_parent->moveIndex() + 1;
 	else
@@ -53,4 +54,25 @@ void SgfTree::addAttribute(const QString &attrname, SgfVariant val)
 QMultiHash <QString, SgfVariant>& SgfTree::attributes()
 {
 	return m_attr;
+}
+
+Stone SgfTree::move()
+{
+	Point p = attrValue("B").toPoint();
+	if ( ! p.isNull())
+	{
+		return Stone(cBlack, p);
+	}
+	else
+	{
+		p = attrValue("W").toPoint();
+		if ( ! p.isNull() )
+		{
+			return Stone(cWhite, p);
+		}
+		else
+		{
+			return Stone::null();
+		}
+	}
 }

@@ -45,6 +45,7 @@ protected:
 	long scanNode(Node* node);
 	long rescanNode(Node* node);
 	void drawNode(Node *node);
+	void keyPressEvent(QKeyEvent *);
 
 public:
 	void setGame(SgfGame *gm);

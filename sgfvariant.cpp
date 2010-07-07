@@ -2,83 +2,83 @@
 
 SgfVariant::SgfVariant()
 {
-	m_type = None;
+	m_type = tNone;
 	m_data = NULL;
 }
 
 SgfVariant::SgfVariant(int t)
 {
-	m_type = Number;
+	m_type = tNumber;
 	m_data = new int(t);
 }
 
 SgfVariant::SgfVariant(double t)
 {
-	m_type = Real;
+	m_type = tReal;
 	m_data = new double(t);
 }
 
 // SGF Double
 SgfVariant::SgfVariant(bool t)
 {
-	m_type = Double;
+	m_type = tDouble;
 	m_data = new qint8(1 + t);
 }
 
 // SGF Color
-SgfVariant::SgfVariant(StoneColor t)
+SgfVariant::SgfVariant(Color t)
 {
-	m_type = Color;
-	if (t < StoneVoid || t > StoneWhite)
-		t = StoneVoid;
-	m_data = new StoneColor(t);
+	m_type = tColor;
+	if (t < cVoid || t > cWhite)
+		t = cVoid;
+	m_data = new Color(t);
 }
 
 // SGF Text or Simple Text
 SgfVariant::SgfVariant(const QString &text, bool simple /*=true*/)
 {
-	m_type = simple ? SimpleText : Text;
+	m_type = simple ? tSimpleText : tText;
 	m_data = new QString(text);
 }
 
 // SGF Move (Go standard)
 SgfVariant::SgfVariant(qint8 col, qint8 row)
 {
-	m_type = Move;
-	m_data = new QPair<qint8,qint8> (col, row);
+	m_type = tPoint;
+	m_data = new Point (col, row);
 }
 
 // SGF Move (Go Standard)
-SgfVariant::SgfVariant(const QPair<qint8, qint8>& t)
+SgfVariant::SgfVariant(const Point t)
 {
-	m_type = Move;
-	m_data = new QPair<qint8,qint8>(t.first, t.second);
+	m_type = tPoint;
+	m_data = new Point(t);
 }
 
 // SGF Compose
 SgfVariant::SgfVariant(const SgfVariant &first, const SgfVariant &second)
 {
-	m_type = Compose;
+	m_type = tCompose;
 	m_data = new QPair<SgfVariant,SgfVariant>(first, second);
 }
 
 // SGF Compose
 SgfVariant::SgfVariant(const QPair<SgfVariant, SgfVariant> &t)
 {
-	m_type = Compose;
+	m_type = tCompose;
 	m_data = new QPair<SgfVariant, SgfVariant>(t.first, t.second);
 }
 
 // SGF List
 SgfVariant::SgfVariant(const QList<SgfVariant> &t)
 {
-	m_type = List;
+	m_type = tList;
 	m_data = new QList<SgfVariant>(t);
 }
 
 SgfVariant::SgfVariant(const SgfVariant &t)
 {
-	m_type = None;
+	m_type = tNone;
 	m_data = NULL;
 	*this = t;
 }
@@ -92,35 +92,35 @@ SgfVariant& SgfVariant::operator= (const SgfVariant& t)
 	m_type = t.m_type;
 	switch (m_type)
 	{
-	case Number:
+	case tNumber:
 		m_data = new int( *(int*)t.m_data );
 		break;
-	case Real:
+	case tReal:
 		m_data = new double( *(double*)t.m_data );
 		break;
-	case Double:
+	case tDouble:
 		m_data = new qint8( *(qint8*)t.m_data );
 		break;
-	case Color:
-		m_data = new StoneColor( *(StoneColor*)t.m_data );
+	case tColor:
+		m_data = new Color( *(Color*)t.m_data );
 		break;
-	case SimpleText:
-	case Text:
+	case tSimpleText:
+	case tText:
 		m_data = new QString(*(QString*)t.m_data);
 		break;
-	case Move:
+	case tPoint:
 	{
-		QPair <qint8, qint8> b = *(QPair <qint8, qint8>*)t.m_data;
-		m_data = new QPair <qint8, qint8>( b.first, b.second );
+			Point b = *(Point*)t.m_data;
+		m_data = new Point( b.col, b.row );
 		break;
 	}
-	case Compose:
+	case tCompose:
 	{
 		QPair <SgfVariant, SgfVariant> b = *(QPair <SgfVariant, SgfVariant>*)t.m_data;
 		m_data = new QPair <SgfVariant, SgfVariant>( b.first, b.second );
 		break;
 	}
-	case List:
+	case tList:
 		m_data = new QList<SgfVariant>(*(QList <SgfVariant>*)t.m_data);
 		break;
 	default:
@@ -134,33 +134,33 @@ void SgfVariant::deleteData()
 {
 	switch (m_type)
 	{
-	case Number:
+	case tNumber:
 		delete (int*)m_data;
 		break;
-	case Real:
+	case tReal:
 		delete (double*)m_data;
 		break;
-	case Double:
+	case tDouble:
 		delete (qint8*)m_data;
 		break;
-	case Color:
-		delete (StoneColor*)m_data;
+	case tColor:
+		delete (Color*)m_data;
 		break;
-	case SimpleText:
-	case Text:
+	case tSimpleText:
+	case tText:
 		delete (QString*)m_data;
 		break;
-	case Move:
+	case tPoint:
 	{
-		delete (QPair <qint8, qint8>*)m_data;
+		delete (Point*)m_data;
 		break;
 	}
-	case Compose:
+	case tCompose:
 	{
 		delete (QPair <SgfVariant, SgfVariant>*)m_data;
 		break;
 	}
-	case List:
+	case tList:
 		delete (QList <SgfVariant>*)m_data;
 		break;
 	default:
@@ -181,27 +181,27 @@ SgfVariant::Type SgfVariant::type()const
 
 int SgfVariant::toNumber()const
 {
-	if (m_type == Number)
+	if (m_type == tNumber)
 		return *(int*)m_data;
-	else if (m_type == Real)
+	else if (m_type == tReal)
 		return int(*(double*)m_data);
 	return 0;
 }
 
 double SgfVariant::toReal()const
 {
-	if (m_type == Number)
+	if (m_type == tNumber)
 		return double(*(int*)m_data);
-	else if (m_type == Real)
+	else if (m_type == tReal)
 		return *(double*)m_data;
 	return 0;
 }
 
 qint8 SgfVariant::toDouble()const
 {
-	if (m_type == Number)
+	if (m_type == tNumber)
 		return *(int*)m_data ? 2 : 1;
-	else if (m_type == Double)
+	else if (m_type == tDouble)
 		return *(qint8*)m_data;
 	return 1;
 }
@@ -210,48 +210,48 @@ QString SgfVariant::toString()const
 {
 	switch (m_type)
 	{
-	case Number:
+	case tNumber:
 		return QString::number(*(int*)m_data);
-	case Real:
+	case tReal:
 		return QString::number(*(double*)m_data, 'f');
-	case Double:
+	case tDouble:
 		return QString::number(*(qint8*)m_data);
-	case Color:
-		switch (*(StoneColor*)m_data)
+	case tColor:
+		switch (*(Color*)m_data)
 		{
-		case StoneBlack:
+		case cBlack:
 			return QString("B");
-		case StoneWhite:
+		case cWhite:
 			return QString("W");
 		default:
 			return QString();
 		}
-	case SimpleText:
-	case Text:
+	case tSimpleText:
+	case tText:
 		return *(QString*)m_data;
-	case Move:
+	case tPoint:
 	{
-		QPair <qint8,qint8> b = *(QPair <qint8,qint8>*)m_data;
-		if (b.first < 0 || b.first > 52 ||
-			b.second < 0 || b.second > 52)
+		Point b = *(Point*)m_data;
+		if (b.col < 0 || b.col > 52 ||
+			b.row < 0 || b.row > 52)
 			return QString();
 		char s[3] = "aa";
-		if (b.first > 26)
-			s[0] = 'A' + b.first - 27;
+		if (b.col > 26)
+			s[0] = 'A' + b.col - 27;
 		else
-			s[0] += b.first;
-		if (b.second > 26)
-			s[1] = 'A' + b.second - 27;
+			s[0] += b.col;
+		if (b.row > 26)
+			s[1] = 'A' + b.row - 27;
 		else
-			s[1] += b.second;
+			s[1] += b.row;
 		return QString(s);
 	}
-	case Compose:
+	case tCompose:
 	{
 		QPair <SgfVariant,SgfVariant> b = *(QPair <SgfVariant,SgfVariant>*)m_data;
 		return QString("%1:%2").arg( b.first.toString(), b.second.toString() );
 	}
-	case List:
+	case tList:
 	{
 		QString res, pattern("[%1]");
 		QList <SgfVariant> list = *(QList <SgfVariant>*)m_data;
@@ -266,13 +266,13 @@ QString SgfVariant::toString()const
 
 QString SgfVariant::toSgfRecordFormat()const
 {
-	if (m_type == Text)
+	if (m_type == tText)
 	{
 		QString rec = *(QString*)m_data;
 		rec.replace(QRegExp("(\\\\|\\])"), "\\\\1");
 		return rec;
 	}
-	else if (m_type == SimpleText)
+	else if (m_type == tSimpleText)
 	{
 		QString rec = *(QString*)m_data;
 		rec.replace(QRegExp("(\\:|\\\\|\\])"), "\\\\1");
@@ -303,32 +303,32 @@ SgfVariant SgfVariant::strToMove(const QString& s)
 			return SgfVariant();
 	}
 	else if (s.size() == 0)
-		col = row = -1;
+		return SgfVariant(Point::pass());
 	else
 		return SgfVariant();
 
 	return SgfVariant(col, row);
 }
 
-QPair <qint8, qint8> SgfVariant::toMove()const
+Point SgfVariant::toPoint()const
 {
-	if (m_type == Move)
-		return *(QPair <qint8, qint8>*)m_data;
+	if (m_type == tPoint)
+		return *(Point*)m_data;
 	else
-		return QPair<qint8,qint8>(0,0);
+		return Point();
 }
 
-StoneColor SgfVariant::toColor()const
+Color SgfVariant::toColor()const
 {
-	if (m_type == Color)
-		return *(StoneColor*)m_data;
+	if (m_type == tColor)
+		return *(Color*)m_data;
 	else
-		return StoneVoid;
+		return cVoid;
 }
 
 QPair <SgfVariant,SgfVariant> SgfVariant::toCompose()const
 {
-	if ( m_type == Compose )
+	if ( m_type == tCompose )
 		return *(QPair <SgfVariant,SgfVariant>*)m_data;
 	else
 		return QPair <SgfVariant,SgfVariant>();
@@ -336,11 +336,11 @@ QPair <SgfVariant,SgfVariant> SgfVariant::toCompose()const
 
 QList <SgfVariant> SgfVariant::toList()const
 {
-	if ( m_type == List )
+	if ( m_type == tList )
 	{
 		return *(QList <SgfVariant>*)m_data;
 	}
-	else if ( m_type == Compose )
+	else if ( m_type == tCompose )
 	{
 		QList <SgfVariant> ret;
 		ret.push_back( ((QPair <SgfVariant,SgfVariant>*)m_data)->first );
@@ -357,25 +357,25 @@ bool SgfVariant::operator ==(const SgfVariant& t)const
 		return false;
 	switch (m_type)
 	{
-	case None:
+	case tNone:
 		return true;
-	case Number:
+	case tNumber:
 		return *(int*)m_data == *(int*)t.m_data;
-	case Real:
+	case tReal:
 		return *(double*)m_data == *(double*)t.m_data;
-	case Double:
+	case tDouble:
 		return *(qint8*)m_data == *(qint8*)t.m_data;
-	case Color:
-		return *(StoneColor*)m_data == *(StoneColor*)t.m_data;
-	case SimpleText:
+	case tColor:
+		return *(Color*)m_data == *(Color*)t.m_data;
+	case tSimpleText:
 		return *(QString*)m_data == *(QString*)t.m_data;
-	case Text:
+	case tText:
 		return *(QString*)m_data == *(QString*)t.m_data;
-	case Move:
-		return *(QPair <qint8, qint8>*)m_data == *(QPair <qint8, qint8>*)t.m_data;
-	case Compose:
+	case tPoint:
+		return *(Point*)m_data == *(Point*)t.m_data;
+	case tCompose:
 		return *(QPair <SgfVariant,SgfVariant>*)m_data == *(QPair <SgfVariant,SgfVariant>*)t.m_data;
-	case List:
+	case tList:
 		return *(QList <SgfVariant>*)m_data == *(QList <SgfVariant>*)t.m_data;
 	default:
 		return false;

@@ -17,17 +17,17 @@ class SgfVariant
 public:
 	enum Type {
 		// scalar types
-			None = 0x0,
-			Number,	// C++ int
-			Real,	// C++ double
-			Double,	// C++ qint8, parse as number
-			Color,	// C++ StoneColor
+			tNone = 0x0,
+			tNumber,	// C++ int
+			tReal,	// C++ double
+			tDouble,	// C++ qint8, parse as number
+			tColor,	// C++ StoneColor
 		//	non-scalar types
-			SimpleText,
-			Text,
-			Move,	// C++ QPair <qint8, qint8>
-			Compose,// C++ QPair <SgfVariant,SgfVariant>
-			List	// C++ QList <SgfVariant>
+			tSimpleText,
+			tText,
+			tPoint,	// C++ Point
+			tCompose,// C++ QPair <SgfVariant,SgfVariant>
+			tList	// C++ QList <SgfVariant>
 		};
 private:
 	Type m_type;
@@ -37,10 +37,10 @@ public:
 	int toNumber()const;
 	double toReal()const;
 	qint8 toDouble()const;
-	StoneColor toColor()const;
+	Color toColor()const;
 	QString toString()const;				// just data string, not features of Text
 	QString toSgfRecordFormat()const;	// main save feature here
-	QPair <qint8, qint8> toMove()const;
+	Point toPoint()const;
 	QPair <SgfVariant,SgfVariant> toCompose()const;
 	QList <SgfVariant> toList()const;
 
@@ -55,10 +55,10 @@ public:
 	SgfVariant(int t);
 	SgfVariant(double t);
 	SgfVariant(bool t); // double
-	SgfVariant(StoneColor t);
+	SgfVariant(Color t);
 	SgfVariant(const QString& text, bool simple = true);
 	SgfVariant(qint8 col, qint8 row);		// stone
-	SgfVariant(const QPair<qint8,qint8>& t);// stone
+	SgfVariant(const Point t);// stone
 	SgfVariant(const SgfVariant& first,		// compose
 			   const SgfVariant& second);	//
 	SgfVariant(const QPair<SgfVariant,SgfVariant>& t);

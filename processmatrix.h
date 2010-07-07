@@ -30,25 +30,35 @@ public:
 	}
 };
 
-template <typename T, template <typename _T> class C1,  template <typename _T> class ProcessFunctor>
-void processMatrix(C1 < C1 <T> > &matrix, const SgfVariant& variant, ProcessFunctor <T> f)
+template <typename T, template <typename T> class C,  template <typename T> class ProcessFunctor>
+void processMatrix(C<C <T> > &matrix, const SgfVariant& variant, ProcessFunctor <T> f)
 {
-	if (variant.type() == SgfVariant::Move)
+	if (variant.type() == SgfVariant::tPoint)
 	{
-		Point pnt = variant.toMove();
-		f(matrix[ pnt.second ][ pnt.second ]);
+		Point pnt = variant.toPoint();
+		f(matrix[ pnt.row ][ pnt.col ]);
 	}
-	else if (variant.type() == SgfVariant::Compose)
+	else if (variant.type() == SgfVariant::tCompose)
 	{
 		QPair <SgfVariant, SgfVariant> compose = variant.toCompose();
-		if (compose.first.type() == SgfVariant::Move && compose.second.type() == SgfVariant::Move)
+		if (compose.first.type() == SgfVariant::tPoint && compose.second.type() == SgfVariant::tPoint)
 		{
-			Point from = compose.first.toMove();
-			Point to = compose.second.toMove();
-			for (int col=from.first; col<=to.first; ++col)
-				for (int row=from.second; row<=to.second; ++row)
+			Point from = compose.first.toPoint();
+			Point to = compose.second.toPoint();
+			for (int col=from.col; col<=to.col; ++col)
+				for (int row=from.row; row<=to.row; ++row)
 					f(matrix[ row ][ col ]);
 		}
+	}
+}
+
+template <typename T, template <typename T> class C,  template <typename T> class ProcessFunctor>
+void processMatrix(C<C<T> > &matrix, ProcessFunctor<T>f)
+{
+	for (typename C<C<T> >::iterator i = matrix.begin(); i != matrix.end(); ++i)
+	{
+		for (typename C<T>::iterator j = i->begin(); j != i->end(); ++j)
+			f(*j);
 	}
 }
 

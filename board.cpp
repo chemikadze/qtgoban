@@ -4,6 +4,7 @@
 #include <QtGui/QHelpEvent>
 #include <QtGui/QToolTip>
 #include "board.h"
+#include "processmatrix.h"
 
 #ifdef DEBUG
 #include <QtCore/QTime>
@@ -45,7 +46,26 @@ void Board::boardChanged()
 	update();
 }
 
-// TODO: support of N[Color Point]
+void Board::drawMoveNames(QPainter &p)
+{
+	// TODO: http://www.red-bean.com/sgf/examples/ex10.gif
+	//return;
+	QVector <Label> v;
+	v.reserve(m_game->currentMove()->children().count());
+	foreach (SgfTree* child, m_game->currentMove()->children())
+	{
+		QString s = child->moveName();
+		if (! s.isEmpty())
+		{
+			Point pnt = child->move().point;
+			if ( ! (pnt.isNull() || pnt.isPass()) )
+			{
+				v.push_back(Label(s, pnt));
+			}
+		}
+	}
+	drawLabels(p, v);
+}
 
 void Board::paintEvent(QPaintEvent* )
 {
@@ -59,10 +79,10 @@ void Board::paintEvent(QPaintEvent* )
 	drawStones(p);
 	drawMarkup(p);
 	drawLabels(p);
+	drawMoveNames(p);
 
 	// draw lines
-	drawLineElements(p, m_game->currentMove()->attrValues("AR"), true);
-	drawLineElements(p, m_game->currentMove()->attrValues("LN"), false);
+	drawLineElements(p, m_game->lines());
 
 	QColor clr = palette().color(QPalette::Window);
 	clr.setAlpha(127);
@@ -75,9 +95,9 @@ void Board::paintEvent(QPaintEvent* )
 	p.setBrush(Qt::green);
 	p.setRenderHint(QPainter::Antialiasing, true);
 	SgfVariant var = m_game->currentMove()->getMoveVariant();
-	if (var.type() == SgfVariant::Move)
+	if (var.type() == SgfVariant::tPoint && m_game->validatePoint(var.toPoint()))
 	{
-		QPointF center = stoneToPoint(var.toMove());
+		QPointF center = stoneToPoint(var.toPoint());
 		QPointF delta(2, 2);
 		p.drawRect( QRectF(center-delta, center+delta) );
 	}
@@ -102,10 +122,10 @@ void Board::drawStones(QPainter &p)
 		{
 			QPointF point = stoneXYToPoint(i, j);
 			// stones
-			StoneColor stone = m_game->stone(i, j);
-			if (stone != StoneVoid && stone != StoneBoth)
+			Color stone = m_game->stone(i, j);
+			if (stone != cVoid && stone != cBoth)
 			{
-				p.setBrush( stone == StoneBlack ? Qt::black : Qt::white );
+				p.setBrush( stone == cBlack ? Qt::black : Qt::white );
 				p.drawEllipse(point, cellsize*0.4+1.0, cellsize*0.4+1.0);
 			}
 		}
@@ -192,31 +212,17 @@ void Board::drawMarkup(QPainter &p)
 	// markup
 	p.setPen(Qt::black);
 	p.setBrush(Qt::NoBrush);
-	QHash <Markup, QString>::const_iterator i;
-	for (i = markupNames.constBegin(); i != markupNames.constEnd(); ++i)
-	{
-		foreach (SgfVariant val, m_game->currentMove()->attrValues(i.value()))
-		{
-			if (val.type() == SgfVariant::Move)
-			{
-				drawMark(p, val.toMove(), i.key());
-			}
-			else if (val.type() == SgfVariant::Compose) // squares
-			{
-				Point leftUp  = val.toCompose().first.toMove();
-				Point rightDn = val.toCompose().second.toMove();
-				for (int x = leftUp.first; x<=rightDn.first; ++x)
-					for (int y = leftUp.second; y<=rightDn.second; ++y)
-						drawMark(p, Point(x, y), i.key());
-			}
-		}
-	}
+	for (int col=0; col < m_game->size().width(); ++col)
+		for (int row=0; row < m_game->size().height(); ++row)
+			if (m_game->markup(col, row) != mVoid)
+				drawMark(p, Point(col, row), m_game->markup(col, row));
 }
 
 /* paths? */
 void Board::drawMark(QPainter &p, Point pnt, Markup mark)
 {
 	p.setPen(Qt::black);
+	p.setBrush(Qt::NoBrush);
 	QPointF point = stoneToPoint(pnt);
 	int marksize = cellsize/4;
 
@@ -228,22 +234,22 @@ void Board::drawMark(QPainter &p, Point pnt, Markup mark)
 
 	switch (mark)
 	{
-	case MCircle:
+	case mCircle:
 		p.drawEllipse(point, marksize, marksize);
 		break;
-	case MCross:
+	case mCross:
 	{
 		p.drawLine(point-QPointF(marksize, marksize), point+QPointF(marksize, marksize));
 		p.drawLine(point-QPointF(-marksize, marksize), point+QPointF(-marksize, marksize));
 		break;
 	}
-	case MSquare:
+	case mSquare:
 	{
 		p.drawRect(QRectF(point-QPointF(marksize, marksize),
 						 point+QPointF(marksize, marksize)) );
 		break;
 	}
-	case MTriangle:
+	case mTriangle:
 	{
 		QPointF triangle[3];
 		for (int i = 0; i < 3; ++i)
@@ -252,7 +258,7 @@ void Board::drawMark(QPainter &p, Point pnt, Markup mark)
 		p.drawPolygon(triangle, 3);
 		break;
 	}
-	case MSelection:
+	case mSelection:
 	{
 		// no standard for drawing this, i would like a green 'X'
 		p.setPen(Qt::green);
@@ -260,12 +266,12 @@ void Board::drawMark(QPainter &p, Point pnt, Markup mark)
 		p.drawLine(point-QPointF(-marksize, marksize), point+QPointF(-marksize, marksize));
 		break;
 	}
-	case MTerrBlack:
-	case MTerrWhite:
+	case mTerrBlack:
+	case mTerrWhite:
 	{
 		p.setRenderHint(QPainter::Antialiasing, false);
 		p.setPen( Qt::black );
-		p.setBrush( mark == MTerrBlack ? Qt::black : Qt::white );
+		p.setBrush( mark == mTerrBlack ? Qt::black : Qt::white );
 		p.drawRect( QRectF(point-QPointF(2.5, 2.5),
 						  point+QPointF(2.5, 2.5)) );
 	}
@@ -274,7 +280,7 @@ void Board::drawMark(QPainter &p, Point pnt, Markup mark)
 	}
 }
 
-void Board::drawLineElements(QPainter &p, QList <SgfVariant> vector, bool arrow)
+void Board::drawLineElements(QPainter &p, const QVector <Line> &vector)
 {
 	p.setPen(Qt::black);
 	QTransform transform = p.transform();
@@ -282,31 +288,31 @@ void Board::drawLineElements(QPainter &p, QList <SgfVariant> vector, bool arrow)
 	QPen pen(Qt::red);
 	pen.setWidth(2);
 	p.setPen(pen);
-	for (int i=0; i<vector.size(); ++i)
+	for (QVector<Line>::const_iterator it = vector.constBegin(); it != vector.constEnd(); ++it)
 	{
-		if (vector[i].type() == SgfVariant::Compose)
+		QPointF p1 = stoneToPoint(it->from);
+		QPointF p2 = stoneToPoint(it->to);
+		double length = hypot( fabs(p2.x() - p1.x()), fabs(p2.y() - p1.y()) );
+		double angle = atan2(p2.y() - p1.y(), p2.x() - p1.x());
+		p.translate(p1.x(), p1.y());
+		p.rotate(angle*180/M_PI);
+		p.drawLine(QPointF(0, 0), QPointF(length, 0));
+		if (it->style == lsArrow)
 		{
-			QPair <SgfVariant, SgfVariant> composeVar = vector[i].toCompose();
-			Point stone1 = composeVar.first.toMove();
-			Point stone2 = composeVar.second.toMove();
-			QPointF p1 = stoneToPoint(stone1);
-			QPointF p2 = stoneToPoint(stone2);
-			double length = hypot( fabs(p2.x() - p1.x()), fabs(p2.y() - p1.y()) );
-			double angle = atan2(p2.y() - p1.y(), p2.x() - p1.x());
-			p.translate(p1.x(), p1.y());
-			p.rotate(angle*180/M_PI);
-			p.drawLine(QPointF(0, 0), QPointF(length, 0));
-			if (arrow)
-			{
-				p.drawLine(QPointF(length, 0), QPointF(length-10, -4));
-				p.drawLine(QPointF(length, 0), QPointF(length-10, 4));
-			}
-			p.setTransform(transform);
+			p.drawLine(QPointF(length, 0), QPointF(length-10, -4));
+			p.drawLine(QPointF(length, 0), QPointF(length-10, 4));
 		}
+		p.setTransform(transform);
 	}
 }
 
 void Board::drawLabels(QPainter &p)
+{
+	if (m_game)
+		drawLabels(p, m_game->labels());
+}
+
+void Board::drawLabels(QPainter &p, QVector <Label> v /*= m_game->labels()*/ )
 {
 	// lables
 	p.setPen(Qt::red);
@@ -315,34 +321,26 @@ void Board::drawLabels(QPainter &p)
 	f.setBold(true);
 	p.setFont(f);
 	QFontMetrics fm(p.font());
-	foreach (SgfVariant var, m_game->currentMove()->attrValues("LB"))
+	processMatrix(tips, assignment<QString>(QString()));
+	foreach (Label lbl, v)
 	{
-		if (var.type() == SgfVariant::Compose)
+		int width = fm.width(lbl.text);
+		if ( width < cellsize )
 		{
-			QPair <SgfVariant, SgfVariant> pairValues = var.toCompose();
-			if (pairValues.first.type() == SgfVariant::Move && pairValues.second.type() == SgfVariant::SimpleText)
-			{
-				Point pnt = pairValues.first.toMove();
-				QString str = pairValues.second.toString();
-				int width = fm.width(str);
-				if ( width < cellsize )
-				{
-					tips[pnt.second][pnt.first].clear();
-					p.drawText( stoneRect(pnt),
-								Qt::AlignCenter,
-								str);
-				}
-				else
-				{
-					tips[pnt.second][pnt.first] = str;
-					str.remove(1, str.length()-1);
-					str.append("...");
-					width = fm.width(str);
-					p.drawText( stoneXToCanvas(pnt.first)-width/2,
-								stoneYToCanvas(pnt.second)+fm.xHeight()/2,
-								QString(str[0])+QString("..."));
-				}
-			}
+			tips[lbl.pos.row][lbl.pos.col].clear();
+			p.drawText( stoneRect(lbl.pos),
+						Qt::AlignCenter,
+						lbl.text);
+		}
+		else
+		{
+			tips[lbl.pos.row][lbl.pos.col] = lbl.text;
+			lbl.text.remove(1, lbl.text.length()-1);
+			lbl.text.append("...");
+			width = fm.width(lbl.text);
+			p.drawText( stoneXToCanvas(lbl.pos.col)-width/2,
+						stoneYToCanvas(lbl.pos.row)+fm.xHeight()/2,
+						QString(lbl.text[0])+QString("…"));
 		}
 	}
 }
@@ -370,9 +368,9 @@ void Board::mouseReleaseEvent(QMouseEvent* e)
 	row = canvasYToStone(e->y());
 	if (!m_game->validatePoint(col, row))
 		return;
-#ifdef DEBUG
+/*#ifdef DEBUG
 	qDebug("Move %d %d", col, row);
-#endif
+#endif*/
 	makeMove(col, row);
 	update();
 }
@@ -404,7 +402,6 @@ bool Board::event(QEvent *e)
 			QToolTip::hideText();
 			event->ignore();
 		}
-		qDebug() << toolTip();
 		return true;
 	}
 	return AbstractBoard::event(e);

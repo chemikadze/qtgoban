@@ -1,6 +1,6 @@
 #include "playerinput.h"
 
-PlayerInput::PlayerInput(SgfGame* game /* = NULL*/, StoneColor allowTo /* = StoneBoth*/)
+PlayerInput::PlayerInput(SgfGame* game /* = NULL*/, Color allowTo /* = StoneBoth*/)
 {
 	m_game = game;
 	m_allowTo = allowTo;

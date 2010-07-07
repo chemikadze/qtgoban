@@ -14,16 +14,16 @@ class PlayerInput
 protected:
 	SgfGame* m_game;
 	void makeMove(qint8 col, qint8 row);
-	StoneColor m_allowTo;
+	Color m_allowTo;
 
 public:
 	inline SgfGame* game()const { return m_game; }
 	virtual void setGame(SgfGame* game);
 
-	inline void setAllowInput(StoneColor allowTo) { m_allowTo = allowTo; }
-	inline StoneColor allowInput()const { return m_allowTo; }
+	inline void setAllowInput(Color allowTo) { m_allowTo = allowTo; }
+	inline Color allowInput()const { return m_allowTo; }
 
-	PlayerInput(SgfGame* game = NULL, StoneColor allowTo = StoneBoth);
+	PlayerInput(SgfGame* game = NULL, Color allowTo = cBoth);
 };
 
 #endif // PLAYERINPUT_H

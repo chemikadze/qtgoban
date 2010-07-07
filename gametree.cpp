@@ -7,6 +7,8 @@
 #include <QtCore/QTime>
 #include <QtGui/QMouseEvent>
 
+// TODO: maybe save iterator? but pre-optimisation
+
 GameTree::GameTree(QWidget *parent, SgfGame *gm) : QAbstractScrollArea(parent)
 {
 	setGame(gm);
@@ -24,6 +26,8 @@ void GameTree::resizeEvent(QResizeEvent *)
 	m_viewportWidth = ceil(viewport()->width() / m_nodeWidth);
 	verticalScrollBar()->setMaximum( std::max(0, m_treeWidth - m_viewportHeight) );
 	horizontalScrollBar()->setMaximum( std::max(0, m_layers.count() - m_viewportWidth) );
+	verticalScrollBar()->setPageStep( m_viewportHeight );
+	horizontalScrollBar()->setPageStep( m_viewportWidth );
 }
 
 void GameTree::paintEvent(QPaintEvent *)
@@ -240,20 +244,86 @@ void GameTree::addNewNode(SgfTree *node)
 
 void GameTree::setCurrentNode(SgfTree *node)
 {
-	m_currCol = node->moveIndex();
-	m_currRow = -1;
-	while (m_currRow == -1)
+	// warning, changes here
+	if (node != m_currNode->sgfNode)
 	{
-		foreach (Node *it, m_layers[m_currCol])
+		m_currCol = node->moveIndex();
+		m_currRow = -1;
+		while (m_currRow == -1)
 		{
-			if (it->sgfNode == node)
+			foreach (Node *it, m_layers[m_currCol])
 			{
-				m_currRow = it->pos;
-				m_currNode = it;
+				if (it->sgfNode == node)
+				{
+					m_currRow = it->pos;
+					m_currNode = it;
+				}
+			}
+			if (m_currRow == -1)
+				addNewNode(node);
+		}
+		viewport()->repaint();
+	}
+// vertical
+	if (verticalScrollBar()->value() > m_currRow)
+	{
+		verticalScrollBar()->setValue(m_currRow);
+		repaint();
+	}
+	if (verticalScrollBar()->value()+verticalScrollBar()->pageStep() < m_currRow)
+	{
+		verticalScrollBar()->setValue(m_currRow - verticalScrollBar()->pageStep()+1);
+		repaint();
+	}
+// horizontal
+	if (horizontalScrollBar()->value() > m_currCol)
+	{
+		horizontalScrollBar()->setValue(m_currCol);
+		repaint();
+	}
+	if (horizontalScrollBar()->value()+horizontalScrollBar()->pageStep() < m_currCol)
+	{
+		horizontalScrollBar()->setValue(m_currCol - horizontalScrollBar()->pageStep()+1);
+		repaint();
+	}
+}
+
+void GameTree::keyPressEvent(QKeyEvent *e)
+{
+	if (e->key() == Qt::Key_Right)
+	{
+		if (m_currNode->children.count())
+		{
+			setCurrentNode(m_currNode->children.first()->sgfNode);
+			m_game->setCurrentMove(m_currNode->sgfNode);
+		}
+	}
+	else if (e->key() == Qt::Key_Left)
+	{
+		if (m_currNode != m_tree)
+		{
+			setCurrentNode(m_currNode->parent->sgfNode);
+			m_game->setCurrentMove(m_currNode->sgfNode);
+		}
+	}
+	else if (e->key() == Qt::Key_Up || e->key() == Qt::Key_Down)
+	{
+		QMap <long, Node*>::iterator it;
+		if (e->key() == Qt::Key_Down)
+		{
+			it = m_layers[m_currCol].lowerBound(m_currRow+1);
+			if (it != m_layers[m_currCol].end())
+				setCurrentNode(it.value()->sgfNode);
+		}
+		else if (e->key() == Qt::Key_Up)
+		{
+			it = m_layers[m_currCol].upperBound(m_currRow-1);
+			if (it.value() == m_currNode && it != m_layers[m_currCol].begin())
+			{
+				--it;
+				setCurrentNode(it.value()->sgfNode);
 			}
 		}
-		if (m_currRow == -1)
-			addNewNode(node);
+		m_game->setCurrentMove(m_currNode->sgfNode);
 	}
-	viewport()->repaint();
 }
