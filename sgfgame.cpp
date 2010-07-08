@@ -203,11 +203,11 @@ bool SgfGame::isDead(qint8 col, qint8 row)
 
 	while (!q.isEmpty())
 	{
-		static QVector <Point> deltas = getUpDownLeftRight();
+		static const QVector <Point> deltas = getUpDownLeftRight();
 
 		foreach (Point point, deltas)
 		{
-			point = Point(col, row) + point;
+			point = q.first() + point;
 			if ( validatePoint(point) && !matrix[point.row][point.col] )
 			{
 				if (m_board[point.row][point.col] == color)
@@ -235,16 +235,11 @@ int SgfGame::fillGroup(qint8 col, qint8 row, Color fillColor)
 
 	while (!q.isEmpty())
 	{
-		// Python-style lol
-		// slow but readable
-		QVector < Point > points;
-		points << Point (q.first().col+1, q.first().row)
-			   << Point (q.first().col-1, q.first().row)
-			   << Point (q.first().col, q.first().row+1)
-			   << Point (q.first().col, q.first().row-1);
+		static QVector <Point> deltas = getUpDownLeftRight();
 
-		foreach (Point point, points)
+		foreach (Point point, deltas)
 		{
+			point = q.first() + point;
 			if ( validatePoint(point) && !matrix[point.row][point.col] )
 			{
 				if (m_board[point.row][point.col] == color)
