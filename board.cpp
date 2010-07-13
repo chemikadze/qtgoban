@@ -10,10 +10,12 @@
 #include <QtCore/QTime>
 #endif
 
-Board::Board()
+Board::Board(QWidget* parent/* = 0*/, SgfGame* game/* = 0*/) : AbstractBoard(parent)
 {
+	setMinimumSize(sizeHint());
 	setMouseTracking(true);
 	m_boardColor = QColor(0xF5, 0xCD, 0x77);
+	setGame(game);
 	// TODO: make cool palette
 //	QPalette pal = palette();
 //	pal.setColor(QPalette::Background, QColor(0xF5, 0xCD, 0x77));
@@ -407,3 +409,13 @@ bool Board::event(QEvent *e)
 	return AbstractBoard::event(e);
 }
 
+
+QSize Board::sizeHint()
+{
+	return QSize(100, 100);
+}
+
+void Board::reloadGame()
+{
+	repaint();
+}

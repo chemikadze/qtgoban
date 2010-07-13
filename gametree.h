@@ -7,13 +7,16 @@
 #include <QtCore/QLinkedList>
 #include "sgfgame.h"
 
-typedef struct SNode
+class Node
 {
+public:
 	SgfTree* sgfNode;
 	long pos;
-	QVector <struct SNode*> children;
-	struct SNode* parent;
-} Node;
+	QVector <Node*> children;
+	Node* parent;
+	Node();
+	~Node();
+};
 
 class GameTree : public QAbstractScrollArea
 {
@@ -37,6 +40,7 @@ class GameTree : public QAbstractScrollArea
 protected slots:
 	void setCurrentNode(SgfTree*);
 	void addNewNode(SgfTree*);
+	void rebuildTree();
 
 protected:
 	void mousePressEvent(QMouseEvent *);

@@ -4,12 +4,7 @@
 #include <QtCore/QFile>
 #include <QtCore/QTime>
 #include <stdio.h>
-#include "sgfvariant.h"
-#include "sgftree.h"
-#include "sgfgame.h"
-#include "gametree.h"
-#include "board.h"
-#include "commentview.h"
+#include "mainwindow.h"
 
 int main(int argc, char** argv)
 {
@@ -17,41 +12,8 @@ int main(int argc, char** argv)
 	QTextCodec::setCodecForCStrings(QTextCodec::codecForName("UTF-8"));
 	QApplication app(argc, argv);
 
-	QTime t; t.start();
-	qDebug() << t.elapsed() << "Creating an object...";
-	SgfGame g;
-
-	qDebug() << t.elapsed() << "Opening...";
-	g.loadBufferFromFile("./tests/input.sgf");
-
-	qDebug() << t.elapsed() << "Reading encoding...";
-	g.setEncoding(g.readEncodingFromBuffer());
-
-	qDebug() << t.elapsed() << "Encoding buffer...";
-	g.encodeBuffer();
-
-	qDebug() << t.elapsed() << "Parsing game tree...";
-	g.readGameFromBuffer();
-
-
-	qDebug() << t.elapsed() << "Clearing buffer...";
-	g.clearBuffer();
-
-	qDebug() << t.elapsed() << "Opened.";
-
-	GameTree tree;
-	tree.setGame(&g);
-	tree.show();
-
-	CommentView view;
-	view.setGame(&g);
-	view.show();
-
-	Board board;
-	board.setGame(&g);	
-	board.show();
-
-	g.saveToFile("./tests/output.sgf");
+	MainWindow *w = new MainWindow();
+	w->show();
 
 	return app.exec();
 }

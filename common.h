@@ -108,7 +108,7 @@ void resizeMatrix(QVector< QVector<T> > &v, QSize newSize, const T& defaultValue
 				  v.size()>0 ? v[0].size() : 0);
 
 	v.resize(newSize.height());
-	for (int i=0; i<oldSize.height(); ++i)
+	for (int i=0; i < std::min(oldSize.height(), newSize.height()); ++i)
 	{
 		v[i].resize(newSize.width());
 		for (int j=oldSize.width(); j<newSize.width(); ++j)

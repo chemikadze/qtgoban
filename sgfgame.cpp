@@ -39,7 +39,7 @@ public:
 	}
 };
 
-SgfGame::SgfGame(QSize size /* =QSize(19, 19) */) : m_killed(3, 0), m_square(3, 0), m_size(0, 0)
+SgfGame::SgfGame(QObject *p, QSize size /* =QSize(19, 19) */) : QObject(p), m_killed(3, 0), m_square(3, 0), m_size(0, 0)
 {
 	resize(size);
 	m_io = new QFile();
@@ -56,7 +56,6 @@ SgfGame::SgfGame(QSize size /* =QSize(19, 19) */) : m_killed(3, 0), m_square(3, 
 
 SgfGame::~SgfGame()
 {
-	saveToFile("./tests/output.sgf");
 	delete m_io;
 	delete m_tree;
 }
@@ -613,7 +612,7 @@ bool SgfGame::canMove(qint8 col, qint8 row)
 	return m_board[row][col] == cVoid;
 }
 
-QFile::FileError SgfGame::loadBufferFromFile(const QString& filename)
+QFile::FileError SgfGame::readBufferFromFile(const QString& filename)
 {
 	m_io->setFileName(filename);
 	m_io->open(QIODevice::ReadOnly);
@@ -628,7 +627,10 @@ void SgfGame::encodeBuffer()
 	m_encodedBuffer = codec->toUnicode(m_buffer);
 }
 
-
+/*
+  TODO: need clear old state data
+		need read board size
+  */
 bool SgfGame::readGameFromBuffer()
 {
 	m_encodedBuffer = codec->toUnicode(m_buffer);
@@ -637,7 +639,10 @@ bool SgfGame::readGameFromBuffer()
 	m_tree = readNodeFromBuffer();
 	if (m_tree)
 	{
+		clearState();
 		m_current = m_tree;
+		emit gameTreeChanged(m_tree);
+		emit currentNodeChanged(m_current);
 		return true;
 	}
 	else
@@ -645,8 +650,22 @@ bool SgfGame::readGameFromBuffer()
 		qWarning("SgfGame: can not load game from buffer with error %d (%s)", m_error, errorToString(m_error).toLatin1().data());
 		m_tree = new SgfTree();
 		m_current = m_tree;
+		resize(19, 19);
+		emit gameTreeChanged(m_tree);
+		emit currentNodeChanged(m_current);
 		return false;
 	}
+}
+
+void SgfGame::clearState()
+{
+	processMatrix(m_board, assignment<Color>(cVoid));
+	processMatrix(m_cellVisible, assignment<qint8>(qint8(CMNone)));
+	processMatrix(m_markup, assignment<Markup>(mVoid));
+	m_viewStack.clear();
+	m_rewriteStack.clear();
+	m_killed.fill(0, 3);
+	m_square.fill(0, 3);
 }
 
 void SgfGame::setEncoding(QString encoding)
@@ -1126,6 +1145,7 @@ QHash <SgfGame::Error, QString> SgfGame::createErrorStringsHash()
 	hash[EWrongGM] = tr("This is not a Go GSF file, GM attribute must have value \'1\'");
 	hash[EUnknownEncoding] = tr("This file has no charset information or CA value is wrong");
 	hash[EInvalidPoint] = tr("Point is out of bounds");
+	hash[EBadAttrValue] = tr("Bad attribute value");
 	return hash;
 }
 

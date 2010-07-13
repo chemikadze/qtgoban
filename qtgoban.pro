@@ -7,7 +7,10 @@ HEADERS += sgftree.h \
     abstractboard.h \
     board.h \
     commentview.h \
-    processmatrix.h
+    processmatrix.h \
+    mainwindow.h \
+    tabwidget.h \
+    newgamedialog.h
 SOURCES += sgftree.cpp \
     sgfgame.cpp \
     sgfvariant.cpp \
@@ -17,12 +20,15 @@ SOURCES += sgftree.cpp \
     abstractboard.cpp \
     board.cpp \
     common.cpp \
-    commentview.cpp
+    commentview.cpp \
+    mainwindow.cpp \
+    tabwidget.cpp \
+    newgamedialog.cpp
 OTHER_FILES += output.sgf \
     input.sgf
 OBJECTS_DIR = ./obj
 MOC_DIR = ./moc
-debug {
-	DEFINES += DEBUG
-	CONFIG += warn_on
+debug { 
+    DEFINES += DEBUG
+    CONFIG += warn_on
 }

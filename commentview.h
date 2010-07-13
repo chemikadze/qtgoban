@@ -11,7 +11,7 @@ Q_OBJECT
 
 public:
 	void setGame(SgfGame* gm);
-	CommentView(QWidget *parent = 0);
+	CommentView(QWidget *parent = 0, SgfGame* gm = 0);
 
 private slots:
 	void sendComment();

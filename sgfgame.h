@@ -28,7 +28,7 @@ class SgfGame : public QObject
 
 public:
 	// all except EBadSyntax and WrongGM are not fatal
-	enum Error { ENo, EBadAttrName, EBadSyntax, EWrongGM, EUnknownEncoding, EInvalidPoint };
+	enum Error { ENo, EBadAttrName, EBadSyntax, EWrongGM, EUnknownEncoding, EInvalidPoint, EBadAttrValue };
 	enum MoveError {MENo, MESuicide, MEKo};
 	enum CellMark { CMNone = 0x0, CMDimm = 0x1, CMInvisible = 0x2 };
 
@@ -90,6 +90,7 @@ protected:
 	bool isDead(qint8 col, qint8 row);
 	void setKills(SgfTree* node);
 	void validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const Color color);
+	void clearState();
 
 //	Viewport changing, VW property
 	void setView(QList <SgfVariant> regionList);
@@ -103,6 +104,7 @@ signals:
 	//void message(QString);
 	void moveErrorOccured(MoveError errcode);
 	void moveErrorOccured(QString s);
+	void gameTreeChanged(SgfTree* root);
 
 public:
 //	Board API
@@ -156,7 +158,7 @@ public:
 	inline QString nodeName() { return m_current->attrValue("N").toString(); }
 	inline void setNodeName(const QString& name) { m_current->setAttribute("N", name); }
 
-	QFile::FileError loadBufferFromFile(const QString& filename);
+	QFile::FileError readBufferFromFile(const QString& filename);
 	QString readEncodingFromBuffer();
 	inline void clearBuffer() { m_buffer.clear(); }
 	void encodeBuffer();
@@ -164,8 +166,9 @@ public:
 	QFile::FileError saveToFile(const QString& filename);
 	SgfVariant strToAttrValue(const QString& attr, const QString& data);
 
-	SgfGame(QSize size = QSize(19, 19));
+	SgfGame(QObject *p = 0, QSize size = QSize(19, 19));
 	~SgfGame();
 };
+
 
 #endif // SGFGAME_H

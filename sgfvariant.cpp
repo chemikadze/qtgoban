@@ -34,6 +34,7 @@ SgfVariant::SgfVariant(Color t)
 	m_data = new Color(t);
 }
 
+// TODO: checkup linebreaks
 // SGF Text or Simple Text
 SgfVariant::SgfVariant(const QString &text, bool simple /*=true*/)
 {

@@ -12,6 +12,9 @@
 #include <QtCore/QDebug>
 #endif
 
+class SgfVariant;
+typedef QPair <SgfVariant, SgfVariant>Compose;
+
 class SgfVariant
 {
 public:
@@ -41,7 +44,7 @@ public:
 	QString toString()const;				// just data string, not features of Text
 	QString toSgfRecordFormat()const;	// main save feature here
 	Point toPoint()const;
-	QPair <SgfVariant,SgfVariant> toCompose()const;
+	Compose toCompose()const;
 	QList <SgfVariant> toList()const;
 
 	static SgfVariant strToMove(const QString& s);

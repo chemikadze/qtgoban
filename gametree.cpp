@@ -11,6 +11,8 @@
 
 GameTree::GameTree(QWidget *parent, SgfGame *gm) : QAbstractScrollArea(parent)
 {
+	m_game = 0;
+	m_tree = 0;
 	setGame(gm);
 	verticalScrollBar()->setMinimum(0);
 	horizontalScrollBar()->setMinimum(0);
@@ -101,6 +103,7 @@ void GameTree::setGame(SgfGame *gm)
 	m_layers.resize(0);
 	if (gm)
 	{
+		delete m_tree;
 		m_tree = new Node;
 		m_tree->sgfNode = gm->tree();
 		m_tree->pos = 0;
@@ -110,6 +113,7 @@ void GameTree::setGame(SgfGame *gm)
 		scanNode(m_tree);
 		verticalScrollBar()->setMaximum( m_treeWidth - m_viewportHeight ) ;
 		horizontalScrollBar()->setMaximum( m_layers.count() - m_viewportWidth );
+		connect(m_game, SIGNAL(gameTreeChanged(SgfTree*)), this, SLOT(rebuildTree()));
 	}
 	else
 	{
@@ -119,13 +123,17 @@ void GameTree::setGame(SgfGame *gm)
 	m_currCol = m_currRow = 0;
 	m_currNode = m_tree;
 	if (m_game)
+	{
 		connect(m_game, SIGNAL(currentNodeChanged(SgfTree*)), this, SLOT(setCurrentNode(SgfTree*)));
+		connect(m_game, SIGNAL(gameTreeChanged(SgfTree*)), this, SLOT(rebuildTree()));
+	}
 	resizeEvent(NULL);
 #ifdef DEBUG
 	qDebug("Game open time: %d", t.elapsed());
 #endif
 }
 
+// TODO: something looks wrong here
 long GameTree::rescanNode(Node* node)
 {
 	if (m_layers.size() <= m_scanDepth+1)
@@ -145,7 +153,7 @@ long GameTree::rescanNode(Node* node)
 		{
 			child->pos = node->pos;
 		}
-		child->pos = scanNode(child);
+		child->pos = rescanNode(child);
 		if (b)
 		{
 			node->pos = child->pos;
@@ -326,4 +334,20 @@ void GameTree::keyPressEvent(QKeyEvent *e)
 		}
 		m_game->setCurrentMove(m_currNode->sgfNode);
 	}
+}
+
+void GameTree::rebuildTree()
+{
+	m_layers.clear();
+	setGame(m_game);
+}
+
+Node::Node()
+{
+
+}
+
+Node::~Node()
+{
+	qDeleteAll(children);
 }

@@ -17,9 +17,11 @@ class Board : public AbstractBoard
 
 protected slots:
 	void boardChanged();
+	void reloadGame();
 	inline void showMoveError(QString s) { QMessageBox::critical(this, tr("Error!"), s); };
 
 protected:
+
 	bool event(QEvent *e);
 	void paintEvent(QPaintEvent*);
 	void mouseReleaseEvent(QMouseEvent* e);
@@ -50,8 +52,9 @@ protected:
 	}
 
 public:
+	virtual QSize sizeHint();
 	virtual void setGame(SgfGame* game);
-	Board();
+	Board(QWidget* parent = 0, SgfGame *game = 0);
 	virtual ~Board();
 };
 
