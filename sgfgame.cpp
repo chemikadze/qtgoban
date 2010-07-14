@@ -527,6 +527,43 @@ bool SgfGame::setStone(qint8 col, qint8 row, Color color, bool force /* = false*
 	}
 }
 
+bool SgfGame::addStone(qint8 col, qint8 row, Color color)
+{
+	if (setStone(col, row, color))
+	{
+		SgfVariant pnt = SgfVariant(col, row);
+		if (!(m_current->attributes().count("B", pnt) ||
+			  m_current->attributes().count("W", pnt)))
+		{
+			m_current->attributes().remove("AE", pnt);
+			m_current->attributes().remove("AB", pnt);
+			m_current->attributes().remove("AW", pnt);
+			if (color == cBlack)
+			{
+				m_current->setAttribute("AB", pnt);
+			}
+			else if (color == cWhite)
+			{
+				m_current->setAttribute("AW", pnt);
+			}
+			else
+			{
+				m_current->setAttribute("AE", pnt);
+			}
+		}
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
+bool SgfGame::addStone(Stone stone)
+{
+	return addStone(stone.point.col, stone.point.row, stone.color);
+}
+
 bool SgfGame::setCurrentMove(SgfTree *newCurr)
 {
 	if (newCurr == m_current)
@@ -594,7 +631,7 @@ void SgfGame::setMarkup(qint8 col, qint8 row, Markup m)
 {
 	if (m!=mVoid)
 	{
-		if (markupNames.contains(m))
+		if (markupNames.contains(m) && !m_current->attributes().count(markupNames.value(m), SgfVariant(col, row)))
 			m_current->attributes().insertMulti( markupNames.value(m), SgfVariant(col, row) );
 	}
 	else
@@ -604,6 +641,28 @@ void SgfGame::setMarkup(qint8 col, qint8 row, Markup m)
 		{
 			m_current->attributes().remove(i.value(), SgfVariant(col, row));
 		}
+	}
+}
+
+void SgfGame::addLine(Line ln)
+{
+	if (! lines().contains(ln))
+	{
+		lines().append(ln);
+
+		if (ln.style == lsLine)
+			m_current->setLine(ln.from, ln.to);
+		else
+			m_current->setArrow(ln.from, ln.to);
+	}
+}
+
+void SgfGame::addLabel(Label lbl)
+{
+	if (! labels().contains(lbl))
+	{
+		labels().append(lbl);
+		m_current->setLabel(lbl);
 	}
 }
 

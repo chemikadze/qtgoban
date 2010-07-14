@@ -91,6 +91,8 @@ protected:
 	void setKills(SgfTree* node);
 	void validateAndAddKilled(SgfTree *node, qint8 col, qint8 row, const Color color);
 	void clearState();
+	bool setStone(Point p, Color color, bool force = false);
+	bool setStone(qint8 col, qint8 row, Color color, bool force = false);
 
 //	Viewport changing, VW property
 	void setView(QList <SgfVariant> regionList);
@@ -112,8 +114,8 @@ public:
 // stones
 	bool makeMove(qint8 col, qint8 row);
 	bool canMove(qint8 col, qint8 row);
-	bool setStone(Point p, Color color, bool force = false);
-	bool setStone(qint8 col, qint8 row, Color color, bool force = false);
+	bool addStone(qint8 col, qint8 row, Color color);
+	bool addStone(Stone stone);
 	inline Color stone(char col, char row) { return m_board[row][col]; }
 	inline const QVector < QVector<Color> >& board() { return m_board; }
 

@@ -76,3 +76,45 @@ Stone SgfTree::move()
 		}
 	}
 }
+
+void SgfTree::setLine(Point from, Point to)
+{
+	setAttribute("LN", SgfVariant( SgfVariant(from), SgfVariant(to) ));
+}
+
+void SgfTree::setArrow(Point from, Point to)
+{
+	setAttribute("AR", SgfVariant( SgfVariant(from), SgfVariant(to) ));
+}
+
+void SgfTree::setLabel(Label lbl)
+{
+	foreach (SgfVariant var, m_attr.values("LB"))
+	{
+		if (var.toCompose().first == lbl.pos)
+		{
+			m_attr.remove("LB", var);
+			break;
+		}
+	}
+
+	setAttribute("LB", SgfVariant( SgfVariant(lbl.pos), SgfVariant(lbl.text) ));
+}
+
+void SgfTree::deleteLineElement(Point from, Point to)
+{
+	m_attr.remove("AR", SgfVariant(SgfVariant(from), SgfVariant(to)));
+	m_attr.remove("LN", SgfVariant(SgfVariant(from), SgfVariant(to)));
+}
+
+void SgfTree::deleteLabel(Point pnt)
+{
+	foreach (SgfVariant var, m_attr.values("LB"))
+	{
+		if (var.toCompose().first == pnt)
+		{
+			m_attr.remove("LB", var);
+			break;
+		}
+	}
+}

@@ -83,6 +83,13 @@ public:
 	inline QVector <SgfTree*> children()const { return m_children; }
 	SgfTree* child(int i);
 
+	void setLine(Point from, Point to);
+	void setArrow(Point from, Point to);
+	void deleteLineElement(Point from, Point to);
+
+	void setLabel(Label lbl);
+	void deleteLabel(Point pnt);
+
 	SgfTree(SgfTree *p = NULL);
 	~SgfTree();
 };

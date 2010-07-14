@@ -12,6 +12,7 @@
 #include <QtCore/QDebug>
 #endif
 
+class SgfVariantData;
 class SgfVariant;
 typedef QPair <SgfVariant, SgfVariant>Compose;
 
@@ -33,9 +34,16 @@ public:
 			tList	// C++ QList <SgfVariant>
 		};
 private:
-	Type m_type;
-	void* m_data;
+	struct Data{
+		Type m_type;
+		void* m_data;
+		quint16 refs;
+	};
+
 	void deleteData();
+
+	Data* d;
+
 public:
 	int toNumber()const;
 	double toReal()const;
@@ -49,7 +57,7 @@ public:
 
 	static SgfVariant strToMove(const QString& s);
 
-	Type type()const;
+	inline Type type()const {return d ? d->m_type : tNone;}
 
 	SgfVariant& operator= (const SgfVariant& t);
 	bool operator== (const SgfVariant& t)const;
