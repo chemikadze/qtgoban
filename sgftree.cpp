@@ -1,5 +1,7 @@
 #include "sgftree.h"
 
+static int i = 0;
+
 SgfTree::SgfTree(SgfTree *p/* = NULL*/)
 {
 	m_parent = p;
@@ -7,12 +9,14 @@ SgfTree::SgfTree(SgfTree *p/* = NULL*/)
 		m_moveIndex = m_parent->moveIndex() + 1;
 	else
 		m_moveIndex = 0;
+	qDebug() << ++i;
 }
 
 SgfTree::~SgfTree()
 {
 	foreach (SgfTree *subtree, m_children)
 		delete subtree;
+	qDebug() << --i;
 }
 
 SgfTree* SgfTree::child(int i)
@@ -36,7 +40,7 @@ SgfVariant SgfTree::attrValue(const QString &attrname)const
 	return m_attr.value(attrname);
 }
 
-QList<SgfVariant> SgfTree::attrValues(const QString &attrname)
+QList<SgfVariant> SgfTree::attrValues(const QString &attrname)const
 {
 	return m_attr.values(attrname);
 }
@@ -79,12 +83,26 @@ Stone SgfTree::move()
 
 void SgfTree::setLine(Point from, Point to)
 {
-	setAttribute("LN", SgfVariant( SgfVariant(from), SgfVariant(to) ));
+	addAttribute("LN", SgfVariant( SgfVariant(from), SgfVariant(to) ));
+}
+
+void SgfTree::removeLine(Point p)
+{
+	foreach(SgfVariant v, attrValues("LN"))
+	{
+		if ((v.toCompose().first.toPoint() == p) || (v.toCompose().second.toPoint() == p))
+			m_attr.remove("LN", v);
+	}
+	foreach(SgfVariant v, attrValues("AR"))
+	{
+		if (v.toCompose().first.toPoint() == p || v.toCompose().second.toPoint() == p)
+			m_attr.remove("LN", v);
+	}
 }
 
 void SgfTree::setArrow(Point from, Point to)
 {
-	setAttribute("AR", SgfVariant( SgfVariant(from), SgfVariant(to) ));
+	addAttribute("AR", SgfVariant( SgfVariant(from), SgfVariant(to) ));
 }
 
 void SgfTree::setLabel(Label lbl)
@@ -98,16 +116,16 @@ void SgfTree::setLabel(Label lbl)
 		}
 	}
 
-	setAttribute("LB", SgfVariant( SgfVariant(lbl.pos), SgfVariant(lbl.text) ));
+	addAttribute("LB", SgfVariant( SgfVariant(lbl.pos), SgfVariant(lbl.text) ));
 }
 
-void SgfTree::deleteLineElement(Point from, Point to)
+void SgfTree::removeLineElement(Point from, Point to)
 {
 	m_attr.remove("AR", SgfVariant(SgfVariant(from), SgfVariant(to)));
 	m_attr.remove("LN", SgfVariant(SgfVariant(from), SgfVariant(to)));
 }
 
-void SgfTree::deleteLabel(Point pnt)
+void SgfTree::removeLabel(Point pnt)
 {
 	foreach (SgfVariant var, m_attr.values("LB"))
 	{
@@ -117,4 +135,126 @@ void SgfTree::deleteLabel(Point pnt)
 			break;
 		}
 	}
+}
+
+void SgfTree::setStone(Stone s)
+{
+	if (!(m_attr.count("B", s.point) ||
+		  m_attr.count("W", s.point)))
+	{
+		m_attr.remove("AE", s.point);
+		m_attr.remove("AB", s.point);
+		m_attr.remove("AW", s.point);
+		if (s.color == cBlack)
+		{
+			addAttribute("AB", s.point);
+		}
+		else if (s.color == cWhite)
+		{
+			addAttribute("AW", s.point);
+		}
+		else
+		{
+			addAttribute("AE", s.point);
+		}
+	}
+}
+
+void SgfTree::setMark(Mark mark)
+{
+	// remove all old marks in this point
+	QHash <Markup,QString>::const_iterator i;
+	for (i=markupNames.constBegin(); i!=markupNames.constEnd(); ++i)
+	{
+		m_attr.remove(i.value(), SgfVariant(mark.pos));
+	}
+	if (mark.mark!=mVoid)
+	{
+		// add mark
+		m_attr.insertMulti( markupNames.value(mark.mark), SgfVariant(mark.pos) );
+	}
+}
+
+QList <Mark> SgfTree::marks()const
+{
+	QList <Mark> l;
+
+	for (QHash<QString, Markup>::const_iterator i = namesMarkup.constBegin();i != namesMarkup.constEnd(); ++i)
+	{
+		foreach (SgfVariant variant, attrValues(i.key()))
+		{
+			if (variant.type() == SgfVariant::tPoint)
+			{
+				l.push_back(Mark(i.value(), variant.toPoint()));
+			}
+			else if (variant.type() == SgfVariant::tCompose)
+			{
+				QPair <SgfVariant, SgfVariant> compose = variant.toCompose();
+				if (compose.first.type() == SgfVariant::tPoint && compose.second.type() == SgfVariant::tPoint)
+				{
+					Point from = compose.first.toPoint();
+					Point to = compose.second.toPoint();
+					for (int col=from.col; col<=to.col; ++col)
+						for (int row=from.row; row<=to.row; ++row)
+							l.push_back(Mark(i.value(), Point(col, row)));
+				}
+			}
+		}
+	}
+
+	return l;
+}
+
+QList <Point> SgfTree::terrBlack()const
+{
+	QList <Point> l;
+
+	foreach (SgfVariant variant, attrValues("TB"))
+	{
+		if (variant.type() == SgfVariant::tPoint)
+		{
+			l.push_back(variant.toPoint());
+		}
+		else if (variant.type() == SgfVariant::tCompose)
+		{
+			QPair <SgfVariant, SgfVariant> compose = variant.toCompose();
+			if (compose.first.type() == SgfVariant::tPoint && compose.second.type() == SgfVariant::tPoint)
+			{
+				Point from = compose.first.toPoint();
+				Point to = compose.second.toPoint();
+				for (int col=from.col; col<=to.col; ++col)
+					for (int row=from.row; row<=to.row; ++row)
+						l.push_back(Point(col, row));
+			}
+		}
+	}
+
+	return l;
+}
+
+QList <Point> SgfTree::terrWhite()const
+{
+	QList <Point> l;
+
+	foreach (SgfVariant variant, attrValues("TW"))
+	{
+		if (variant.type() == SgfVariant::tPoint)
+		{
+			l.push_back(variant.toPoint());
+		}
+		else if (variant.type() == SgfVariant::tCompose)
+		{
+			QPair <SgfVariant, SgfVariant> compose = variant.toCompose();
+			if (compose.first.type() == SgfVariant::tPoint && compose.second.type() == SgfVariant::tPoint)
+			{
+				Point from = compose.first.toPoint();
+				Point to = compose.second.toPoint();
+				for (int col=from.col; col<=to.col; ++col)
+					for (int row=from.row; row<=to.row; ++row)
+						l.push_back(Point(col, row));
+			}
+		}
+	}
+
+	return l;
 }

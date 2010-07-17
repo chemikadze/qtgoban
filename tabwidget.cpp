@@ -34,6 +34,11 @@ TabWidget::TabWidget(QWidget *parent, QSize size) :
 	resize(700, 400);
 }
 
+TabWidget::~TabWidget()
+{
+	//delete m_game;
+}
+
 bool TabWidget::openFile(const QString &s)
 {
 	QTime t; t.start();

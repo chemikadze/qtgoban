@@ -15,8 +15,6 @@ QHash <Markup, QString> getMarkupNames()
 	hash[mSquare] = "SQ";
 	hash[mTriangle] = "TR";
 	hash[mSelection] = "SL";
-	hash[mTerrBlack] = "TB";
-	hash[mTerrWhite] = "TW";
 
 	return hash;
 }
@@ -30,8 +28,6 @@ QHash <QString, Markup> getNamesMarkup()
 	hash["SQ"] = mSquare;
 	hash["TR"] = mTriangle;
 	hash["SL"] = mSelection;
-	hash["TB"] = mTerrBlack;
-	hash["TW"] = mTerrWhite;
 
 	return hash;
 }

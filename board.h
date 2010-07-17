@@ -2,6 +2,7 @@
 #define BOARD_H
 
 #include <QtGui/QMessageBox>
+#include <QtGui/QInputDialog>
 #include <cmath>
 #include "abstractboard.h"
 #include "sgfgame.h"
@@ -14,6 +15,7 @@ class Board : public AbstractBoard
 	double cellsize;
 	QVector < QVector <QString> > tips;
 	QColor m_boardColor;
+	Point m_lineStopPoint;
 
 protected slots:
 	void boardChanged();
@@ -25,10 +27,12 @@ protected:
 	bool event(QEvent *e);
 	void paintEvent(QPaintEvent*);
 	void mouseReleaseEvent(QMouseEvent* e);
+	void mouseMoveEvent(QMouseEvent *);
 	void resizeEvent(QResizeEvent *);
 
 	void drawBoard(QPainter &p);
 	void drawStones(QPainter &p);
+	void drawTerritory(QPainter &p);
 	void drawMarkup(QPainter &p);
 	void drawMark(QPainter &p, Point pnt, Markup mark);
 
@@ -40,6 +44,7 @@ protected:
 
 	inline QPointF stoneToPoint(Point pnt) { return QPointF(stoneXToCanvas(pnt.col), stoneYToCanvas(pnt.row)); }
 	inline QPointF stoneXYToPoint(int x, int y) { return QPointF(stoneXToCanvas(x), stoneYToCanvas(y)); }
+	inline Point canvasToPoint(QPoint p) { return Point(canvasXToStone(p.x()), canvasYToStone(p.y())); }
 	inline int canvasXToStone(int x) { return round((x - dx) / cellsize); }
 	inline int canvasYToStone(int y) { return round((y - dy) / cellsize); }
 	inline double stoneXToCanvas(int x) { return dx + cellsize * double(x) - 0.5; }

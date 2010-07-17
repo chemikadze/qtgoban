@@ -14,9 +14,8 @@ enum Markup { mVoid = 0x0,
 			mCross,
 			mSquare,
 			mTriangle,
-			mSelection,
-			mTerrBlack,
-			mTerrWhite };
+			mSelection
+};
 enum Annotation {
 			maNone = 0x0,
 			maGoodForBlack,
@@ -69,12 +68,15 @@ public:
 
 inline uint qHash(const Stone &p) { return qHash(QPair<Color,Point>(p.color, p.point)); }
 
-
-// marks
-typedef struct {
+// labels on board
+class Mark {
+public:
 	Markup mark;
 	Point pos;
-}	Mark;
+	inline bool operator == (const Mark& mrk)const { return mark==mrk.mark && pos==mrk.pos; }
+	inline Mark(): mark(), pos() {}
+	inline Mark(Markup mrk, Point ps) : mark(mrk), pos(ps) { }
+};
 
 // labels on board
 class Label {
@@ -119,17 +121,27 @@ void resizeMatrix(QVector< QVector<T> > &v, QSize newSize, const T& defaultValue
 		v[i] = QVector <T> (newSize.width(), defaultValue);
 }
 
-extern const QHash <Markup, QString> markupNames;
-extern const QHash <QString, Markup> namesMarkup;
-
 inline Color invertColor(Color c)
 {
 	return c == cBlack ? cWhite :
 				( c == cWhite ? cBlack : cVoid );
 }
 
+template <class T>
+		void removeFromVector(QVector <T> &v, const T &val)
+{
+	typename QVector<T>::iterator it;
+	it = qFind(v.begin(), v.end(), val);
+	if (it != v.end())
+	{
+		std::swap(*it, v.last());
+		v.pop_back();
+	}
+}
+
 template <typename T>
 		bool insert(QVector<T>& v, const T& val)
+
 {
 	if (v.contains(val))
 		return false;
@@ -141,6 +153,7 @@ template <typename T>
 }
 
 QVector <Point> getUpDownLeftRight();
-
+extern const QHash <Markup, QString> markupNames;
+extern const QHash <QString, Markup> namesMarkup;
 
 #endif // COMMON_H

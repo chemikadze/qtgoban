@@ -19,6 +19,9 @@ class SgfTree
 // start new
 //	Stone m_move;
 #ifdef FULL_MVC
+	QList <Point> m_terrBlack;
+	QList <Point> m_terrWhite;
+
 	bool m_force; // KO
 //	QVector <Stone> m_setting;
 
@@ -41,24 +44,8 @@ class SgfTree
 // end new
 
 public:
-
-	inline /* orly? */ SgfVariant getMoveVariant()
-	{
-		SgfVariant var = m_attr.value("B");
-		if (var.type() == SgfVariant::tPoint)
-			return var;
-		else
-		{
-			var = m_attr.value("W");
-			if (var.type() == SgfVariant::tPoint)
-				return var;
-			else
-				return SgfVariant();
-		}
-	}
-
 	SgfVariant attrValue(const QString& attrname)const;
-	QList<SgfVariant> attrValues(const QString& attrname);
+	QList<SgfVariant> attrValues(const QString& attrname)const;
 	void setAttribute(const QString& attrname, SgfVariant val);
 	void addAttribute(const QString& attrname, SgfVariant val);
 	QMultiHash <QString, SgfVariant>& attributes();
@@ -83,12 +70,28 @@ public:
 	inline QVector <SgfTree*> children()const { return m_children; }
 	SgfTree* child(int i);
 
+	inline Color turn() { return m_attr.value("PL").toColor(); }
+	inline void setTurn(Color color) { setAttribute("PL", color); }
+
 	void setLine(Point from, Point to);
+	void removeLine(Point p);
 	void setArrow(Point from, Point to);
-	void deleteLineElement(Point from, Point to);
+	void removeLineElement(Point from, Point to);
 
 	void setLabel(Label lbl);
-	void deleteLabel(Point pnt);
+	void removeLabel(Point pnt);
+
+	QList <Mark> marks()const;
+	void setMark(Mark);
+
+	QList <Point> terrBlack() const;
+	QList <Point> terrWhite() const;
+	inline void addTerrBlack(Point s) { m_attr.insert("TB", s); }
+	inline void addTerrWhite(Point s) { m_attr.insert("TW", s); }
+	inline void removeTerrWhite(Point s) { m_attr.remove("TW", s); }
+	inline void removeTerrBlack(Point s) { m_attr.remove("TB", s); }
+
+	void setStone(Stone s);
 
 	SgfTree(SgfTree *p = NULL);
 	~SgfTree();

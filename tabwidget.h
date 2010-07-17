@@ -16,15 +16,19 @@ class TabWidget : public QWidget
 	GameTree *m_tree;
 	CommentView *m_commentView;
 	QString m_filename;
+	bool m_changed;
 
 public:
 	QString fileName()const;
 	QString filePath()const;
 	inline SgfGame* game() { return m_game; }
+	inline Board* board() { return m_board; }
 	bool openFile(const QString& s);
 	bool saveFile(const QString& s = QString());
+	inline bool changed()const { return m_changed; }
 
 	TabWidget(QWidget *parent = 0, QSize size = QSize(19, 19));
+	~TabWidget();
 
 signals:
 

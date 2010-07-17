@@ -81,10 +81,13 @@ void Board::paintEvent(QPaintEvent* )
 	drawStones(p);
 	drawMarkup(p);
 	drawLabels(p);
+	drawTerritory(p);
 	drawMoveNames(p);
 
 	// draw lines
 	drawLineElements(p, m_game->lines());
+	if (m_lineDrawingStarted)
+		drawLineElements(p, QVector<Line>() << Line(m_lineStartPoint, m_lineStopPoint, m_lineStyle));
 
 	QColor clr = palette().color(QPalette::Window);
 	clr.setAlpha(127);
@@ -96,10 +99,10 @@ void Board::paintEvent(QPaintEvent* )
 	p.setPen(Qt::black);
 	p.setBrush(Qt::green);
 	p.setRenderHint(QPainter::Antialiasing, true);
-	SgfVariant var = m_game->currentMove()->getMoveVariant();
-	if (var.type() == SgfVariant::tPoint && m_game->validatePoint(var.toPoint()))
+	Stone mv = m_game->currentMove()->move();
+	if (! (mv.isNull() || mv.point.isPass()) )
 	{
-		QPointF center = stoneToPoint(var.toPoint());
+		QPointF center = stoneToPoint(mv.point);
 		QPointF delta(2, 2);
 		p.drawRect( QRectF(center-delta, center+delta) );
 	}
@@ -214,10 +217,8 @@ void Board::drawMarkup(QPainter &p)
 	// markup
 	p.setPen(Qt::black);
 	p.setBrush(Qt::NoBrush);
-	for (int col=0; col < m_game->size().width(); ++col)
-		for (int row=0; row < m_game->size().height(); ++row)
-			if (m_game->markup(col, row) != mVoid)
-				drawMark(p, Point(col, row), m_game->markup(col, row));
+	foreach (Mark m, m_game->marks())
+		drawMark(p, m.pos, m.mark);
 }
 
 /* paths? */
@@ -268,17 +269,32 @@ void Board::drawMark(QPainter &p, Point pnt, Markup mark)
 		p.drawLine(point-QPointF(-marksize, marksize), point+QPointF(-marksize, marksize));
 		break;
 	}
-	case mTerrBlack:
-	case mTerrWhite:
+
+	default:
+		;
+	}
+}
+
+void Board::drawTerritory(QPainter &p)
+{
+	foreach (Point pnt, m_game->currentMove()->terrBlack())
 	{
+		QPointF point = stoneToPoint(pnt);
 		p.setRenderHint(QPainter::Antialiasing, false);
 		p.setPen( Qt::black );
-		p.setBrush( mark == mTerrBlack ? Qt::black : Qt::white );
+		p.setBrush( Qt::black );
 		p.drawRect( QRectF(point-QPointF(2.5, 2.5),
 						  point+QPointF(2.5, 2.5)) );
 	}
-	default:
-		;
+
+	foreach (Point pnt, m_game->currentMove()->terrWhite())
+	{
+		QPointF point = stoneToPoint(pnt);
+		p.setRenderHint(QPainter::Antialiasing, false);
+		p.setPen( Qt::black );
+		p.setBrush( Qt::white );
+		p.drawRect( QRectF(point-QPointF(2.5, 2.5),
+						  point+QPointF(2.5, 2.5)) );
 	}
 }
 
@@ -310,6 +326,7 @@ void Board::drawLineElements(QPainter &p, const QVector <Line> &vector)
 
 void Board::drawLabels(QPainter &p)
 {
+	processMatrix(tips, assignment<QString>(QString()));
 	if (m_game)
 		drawLabels(p, m_game->labels());
 }
@@ -323,7 +340,6 @@ void Board::drawLabels(QPainter &p, QVector <Label> v /*= m_game->labels()*/ )
 	f.setBold(true);
 	p.setFont(f);
 	QFontMetrics fm(p.font());
-	processMatrix(tips, assignment<QString>(QString()));
 	foreach (Label lbl, v)
 	{
 		int width = fm.width(lbl.text);
@@ -370,10 +386,74 @@ void Board::mouseReleaseEvent(QMouseEvent* e)
 	row = canvasYToStone(e->y());
 	if (!m_game->validatePoint(col, row))
 		return;
-/*#ifdef DEBUG
-	qDebug("Move %d %d", col, row);
-#endif*/
-	makeMove(col, row);
+	if (e->button() == Qt::LeftButton)
+	{
+		switch (m_editMode)
+		{
+		case MoveMode:
+			makeMove(col, row);
+			break;
+		case EditMode:
+			m_game->addStone(col, row, m_editColor);
+			break;
+		case MarkMode:
+			m_game->addMark(col, row, m_markup);
+			break;
+		case LineMode:
+			if (m_lineDrawingStarted)
+			{
+				m_game->addLine(Line(m_lineStartPoint, Point(col, row), m_lineStyle));
+				m_lineDrawingStarted = false;
+			}
+			else
+			{
+				m_lineStartPoint = Point(col, row);
+				m_lineStopPoint = Point(col, row);
+				m_lineDrawingStarted = true;
+			}
+			break;
+		case LabelMode:
+		{
+			QString lbl =
+				QInputDialog::getText(this,
+									  tr("Enter label"),
+									  QString(),
+									  QLineEdit::Normal,
+									  m_game->labelAt(Point(col, row))
+									  );
+			if (!lbl.isEmpty())
+				m_game->addLabel(Label(lbl, Point(col, row)));
+			break;
+		}
+		default:
+			break;
+		}
+	}
+	else
+	{
+		switch (m_editMode)
+		{
+		case EditMode:
+			m_game->addStone(col, row, cVoid);
+			break;
+		case MarkMode:
+			m_game->addMark(col, row, mVoid);
+			break;
+		case LineMode:
+			if (!m_lineDrawingStarted)
+			{
+				m_game->removeLine(Point(col, row));
+			}
+			m_lineDrawingStarted = false;
+			break;
+		case LabelMode:
+			m_game->removeLabel(Point(col, row));
+			break;
+		default:
+			break;
+		}
+	}
+
 	update();
 }
 
@@ -407,6 +487,15 @@ bool Board::event(QEvent *e)
 		return true;
 	}
 	return AbstractBoard::event(e);
+}
+
+void Board::mouseMoveEvent(QMouseEvent *e)
+{
+	if (m_lineDrawingStarted)
+	{
+		m_lineStopPoint = canvasToPoint(e->pos());
+		update();
+	}
 }
 
 

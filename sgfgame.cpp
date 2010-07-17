@@ -283,10 +283,7 @@ void SgfGame::stepForward(SgfTree *next)
 				}
 		}
 
-		if (color == cBlack)
-			m_turn = cWhite;
-		else
-			m_turn = cBlack;
+		//m_turn = invertColor(color);
 	}
 	else
 	{
@@ -319,6 +316,7 @@ void SgfGame::stepForward(SgfTree *next)
 			}
 		}
 	}
+	m_turn = invertColor(m_turn);
 
 	QList <SgfVariant> vals = next->attrValues("DD"); // dimm
 	for (int i=0; i<vals.size(); ++i)
@@ -326,11 +324,8 @@ void SgfGame::stepForward(SgfTree *next)
 		processMatrix(m_cellVisible, vals[i], addBits<qint8>(CMDimm));
 	}
 
-	val = next->attrValue("PL");
-	if (val.type() == SgfVariant::tColor)
-	{
-		m_turn = val.toColor();
-	}
+	if (m_current->turn())
+		m_turn = m_current->turn();
 	
 	vals = next->attrValues("VW"); // view region
 	if (!vals.isEmpty())
@@ -372,10 +367,7 @@ void SgfGame::stepBackward()
 			m_board[val.toPoint().row][val.toPoint().col] = cVoid;
 		}
 
-		if (killColor == cBlack)
-			m_turn = cWhite;
-		else
-			m_turn = cBlack;
+		//m_turn = invertColor(killColor);
 	}
 	else
 	{
@@ -418,18 +410,14 @@ void SgfGame::stepBackward()
 		}
 	}
 
+	m_turn = invertColor(m_turn);
+
 	QList <SgfVariant> vals = m_current->attrValues("DD"); // dimm
 	for (int i=0; i<vals.size(); ++i)
 	{
 		processMatrix(m_cellVisible, vals[i], deleteBits<qint8>(CMDimm));
 	}
 
-
-	val = m_current->attrValue("PL");
-	if (val.type() == SgfVariant::tColor)
-	{
-		m_turn = val.toColor();
-	}
 	
 	vals = m_current->attrValues("VW"); // view region
 	if (!vals.isEmpty())
@@ -440,6 +428,9 @@ void SgfGame::stepBackward()
 
 // now moved to parent node
 	m_current = m_current->parent();
+
+	if (m_current->turn())
+		m_turn = m_current->turn();
 
 	setMarks(m_current);
 	setLabels(m_current);
@@ -466,11 +457,7 @@ void SgfGame::setLabels(SgfTree *node)
 
 void SgfGame::setMarks(SgfTree *node)
 {
-	processMatrix(m_markup, assignment<Markup>(mVoid));
-	for (QHash<QString, Markup>::const_iterator i = namesMarkup.constBegin();
-		 i != namesMarkup.constEnd(); ++i)
-		foreach (SgfVariant var, node->attrValues(i.key()))
-			processMatrix(m_markup, var, assignment<Markup>(i.value()));
+	m_marks = node->marks();
 }
 
 void SgfGame::setLines(SgfTree *node)
@@ -529,32 +516,34 @@ bool SgfGame::setStone(qint8 col, qint8 row, Color color, bool force /* = false*
 
 bool SgfGame::addStone(qint8 col, qint8 row, Color color)
 {
+	if (!validatePoint(col, row))
+		return false;
+	if (m_board[row][col] == color)
+		return true;
+	SgfTree *child = 0;
+	if (m_current->move().color == cBlack || m_current->move().color == cWhite)
+	{
+		child = new SgfTree(m_current);
+		m_current->addChild(child);
+		stepForward(child);
+	}
+
 	if (setStone(col, row, color))
 	{
-		SgfVariant pnt = SgfVariant(col, row);
-		if (!(m_current->attributes().count("B", pnt) ||
-			  m_current->attributes().count("W", pnt)))
+		m_current->setStone(Stone(color, Point(col, row)));
+		if (child)
 		{
-			m_current->attributes().remove("AE", pnt);
-			m_current->attributes().remove("AB", pnt);
-			m_current->attributes().remove("AW", pnt);
-			if (color == cBlack)
-			{
-				m_current->setAttribute("AB", pnt);
-			}
-			else if (color == cWhite)
-			{
-				m_current->setAttribute("AW", pnt);
-			}
-			else
-			{
-				m_current->setAttribute("AE", pnt);
-			}
+			emit currentNodeChanged(m_current);
 		}
 		return true;
 	}
 	else
 	{
+		if (child)
+		{
+			stepBackward();
+			delete child;
+		}
 		return false;
 	}
 }
@@ -624,31 +613,21 @@ bool SgfGame::setCurrentMove(SgfTree *newCurr)
 
 	m_current = newCurr;
 	emit currentNodeChanged(m_current);
+	emit turnChanged(turn());
 	return true; // false if hasn't found
 }
 
-void SgfGame::setMarkup(qint8 col, qint8 row, Markup m)
+void SgfGame::addMark(qint8 col, qint8 row, Markup m)
 {
-	if (m!=mVoid)
-	{
-		if (markupNames.contains(m) && !m_current->attributes().count(markupNames.value(m), SgfVariant(col, row)))
-			m_current->attributes().insertMulti( markupNames.value(m), SgfVariant(col, row) );
-	}
-	else
-	{
-		QHash <Markup,QString>::const_iterator i;
-		for (i=markupNames.constBegin(); i!=markupNames.constEnd(); ++i)
-		{
-			m_current->attributes().remove(i.value(), SgfVariant(col, row));
-		}
-	}
+	m_current->setMark(Mark(m, Point(col, row)));
+	setMarks(m_current);
 }
 
 void SgfGame::addLine(Line ln)
 {
 	if (! lines().contains(ln))
 	{
-		lines().append(ln);
+		m_lines.append(ln);
 
 		if (ln.style == lsLine)
 			m_current->setLine(ln.from, ln.to);
@@ -657,13 +636,32 @@ void SgfGame::addLine(Line ln)
 	}
 }
 
+void SgfGame::removeLine(Point p)
+{
+	m_current->removeLine(p);
+	setLines(m_current);
+}
+
 void SgfGame::addLabel(Label lbl)
 {
-	if (! labels().contains(lbl))
+	m_current->setLabel(lbl);
+	setLabels(m_current);
+}
+
+QString SgfGame::labelAt(Point p)
+{
+	foreach (Label lbl, labels())
 	{
-		labels().append(lbl);
-		m_current->setLabel(lbl);
+		if (lbl.pos == p)
+			return lbl.text;
 	}
+	return QString();
+}
+
+void SgfGame::removeLabel(Point p)
+{
+	m_current->removeLabel(p);
+	setLabels(m_current);
 }
 
 bool SgfGame::canMove(qint8 col, qint8 row)
@@ -720,7 +718,6 @@ void SgfGame::clearState()
 {
 	processMatrix(m_board, assignment<Color>(cVoid));
 	processMatrix(m_cellVisible, assignment<qint8>(qint8(CMNone)));
-	processMatrix(m_markup, assignment<Markup>(mVoid));
 	m_viewStack.clear();
 	m_rewriteStack.clear();
 	m_killed.fill(0, 3);
@@ -1179,7 +1176,6 @@ void SgfGame::resize(QSize s)
 	m_size = s;
 	resizeMatrix(m_board, s, cVoid);
 	resizeMatrix(m_cellVisible, s, qint8(0x0));
-	resizeMatrix(m_markup, s, mVoid);
 }
 
 void SgfGame::emitError(Error errorcode)
@@ -1298,4 +1294,15 @@ QHash <SgfGame::MoveError, QString> SgfGame::createMoveErrorHash()
 	hash[MESuicide] = tr("Suicide move");
 	hash[MEKo] = tr("Ko");
 	return hash;
+}
+
+void SgfGame::setTurn(Color turn)
+{
+	if ((turn == cBlack || turn == cWhite) && turn != m_turn)
+	{
+		m_turn = turn;
+		if (m_current->turn() != m_turn && ! (m_current->parent() && m_current->parent()->turn() == invertColor(m_turn)) )
+			m_current->setTurn(turn);
+		emit turnChanged(turn);
+	}
 }

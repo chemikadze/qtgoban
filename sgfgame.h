@@ -38,9 +38,9 @@ protected:
 	QVector <QVector <Color> > m_board;
 	QVector <QVector <qint8> > m_cellVisible; // CellMark, but need bit operations
 	QVector <QList <SgfVariant> > m_viewStack;
-	QVector <QVector <Markup> > m_markup;
 	QVector <QPair <qint16, QSet<Stone> > > m_rewriteStack;
 	QVector <QPair <qint16, QSet<Stone> > > m_killStack;
+	QList <Mark> m_marks;
 	SgfTree *m_tree;
 	SgfTree *m_current;
 	QFile *m_io;
@@ -107,6 +107,10 @@ signals:
 	void moveErrorOccured(MoveError errcode);
 	void moveErrorOccured(QString s);
 	void gameTreeChanged(SgfTree* root);
+	void turnChanged(Color turn);
+
+public slots:
+	void setTurn(Color turn);
 
 public:
 //	Board API
@@ -120,13 +124,17 @@ public:
 	inline const QVector < QVector<Color> >& board() { return m_board; }
 
 // markup
-	void setMarkup(qint8 col, qint8 row, Markup m);
-	inline Markup markup(qint8 col, qint8 row) { return m_markup[row][col]; }
+	void addMark(qint8 col, qint8 row, Markup m);
+	//inline Markup markup(qint8 col, qint8 row) { return m_markup[row][col]; }
+	QList <Mark> marks()const { return m_marks; }
 	inline QVector<QVector<qint8> > cellVisibleStates() { return m_cellVisible; }
 	void addLine(Line ln);
+	void removeLine(Point p);
 	inline QVector<Line> lines() { return m_lines; };
 	void addLabel(Label lbl);
 	inline QVector<Label> labels() { return m_labels; }
+	QString labelAt(Point p);
+	void removeLabel(Point p);
 
 // setticg current position
 	bool setCurrentMove(SgfTree* newCurr);

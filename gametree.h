@@ -54,6 +54,7 @@ protected:
 public:
 	void setGame(SgfGame *gm);
 	GameTree(QWidget *parent=NULL, SgfGame* gm=NULL);
+	~GameTree();
 
 signals:
 	void nodeSelected(SgfTree* newNode, SgfTree* oldNode);

@@ -20,6 +20,11 @@ GameTree::GameTree(QWidget *parent, SgfGame *gm) : QAbstractScrollArea(parent)
 	m_viewportWidth = ceil(viewport()->width() / m_nodeWidth);
 }
 
+GameTree::~GameTree()
+{
+	delete m_tree;
+}
+
 void GameTree::resizeEvent(QResizeEvent *)
 {
 	verticalScrollBar()->setMinimum(0);
@@ -67,11 +72,21 @@ void GameTree::paintEvent(QPaintEvent *)
 									 nodeLineX-m_nodeWidth, nodeY );
 			}
 			if (i)
+			{
+				Color moveColor = node->sgfNode->move().color;
+				if (moveColor == cBlack)
+					vpPainter->setBrush( Qt::black );
+				else if (moveColor == cWhite)
+					vpPainter->setBrush( Qt::white );
+				else
+					vpPainter->setBrush( Qt::gray );
 				vpPainter->drawEllipse(QPoint(nodeX, nodeY), m_nodeSize/2, m_nodeSize/2);
+			}
 			else
 			{
 				int sqHW = ceil(double(m_nodeSize)/3);
 				int sqHH = ceil(double(m_nodeSize)/3);
+				vpPainter->setBrush( Qt::white );
 				vpPainter->drawRect(nodeX-sqHW, nodeY - sqHH,
 									2*sqHW, 2*sqHH);
 			}

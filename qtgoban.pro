@@ -10,7 +10,8 @@ HEADERS += sgftree.h \
     processmatrix.h \
     mainwindow.h \
     tabwidget.h \
-    newgamedialog.h
+    newgamedialog.h \
+    choosetoolbutton.h
 SOURCES += sgftree.cpp \
     sgfgame.cpp \
     sgfvariant.cpp \
@@ -23,7 +24,8 @@ SOURCES += sgftree.cpp \
     commentview.cpp \
     mainwindow.cpp \
     tabwidget.cpp \
-    newgamedialog.cpp
+    newgamedialog.cpp \
+    choosetoolbutton.cpp
 OTHER_FILES += output.sgf \
     input.sgf
 OBJECTS_DIR = ./obj
