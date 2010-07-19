@@ -30,9 +30,18 @@ void SgfTree::addChild(SgfTree *child)
 	child->setParent(this);
 }
 
-void SgfTree::removeChild(SgfTree *child)
+bool SgfTree::removeChild(SgfTree *child)
 {
-	m_children.remove( m_children.indexOf(child) );
+	int idx = m_children.indexOf(child);
+	if (idx>=0)
+	{
+		m_children.remove( idx );
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 SgfVariant SgfTree::attrValue(const QString &attrname)const
@@ -257,4 +266,44 @@ QList <Point> SgfTree::terrWhite()const
 	}
 
 	return l;
+}
+
+void SgfTree::setTerritory(Stone s)
+{
+	m_attr.remove("TB", s.point);
+	m_attr.remove("TW", s.point);
+	if (s.color == cBlack)
+	{
+		addAttribute("TB", s.point);
+	}
+	else if (s.color == cWhite)
+	{
+		addAttribute("TW", s.point);
+	}
+}
+
+SgfTree::NodeAnnot SgfTree::nodeAnnot()
+{
+	if (m_attr.contains("GB"))
+		return GoodForBlack;
+	else if (m_attr.contains("GW"))
+		return GoodForWhite;
+	else if (m_attr.contains("DM"))
+		return Even;
+	else if (m_attr.contains("UC"))
+		return Unclear;
+	return naNone;
+}
+
+SgfTree::MoveAnnot SgfTree::moveAnnot()
+{
+	if (m_attr.contains("BM"))
+		return Bad;
+	else if (m_attr.contains("DO"))
+		return Doubtful;
+	else if (m_attr.contains("IT"))
+		return Interesting;
+	if (m_attr.contains("TE"))
+		return Tesuji;
+	return maNone;
 }

@@ -39,7 +39,7 @@ public:
 	}
 };
 
-SgfGame::SgfGame(QObject *p, QSize size /* =QSize(19, 19) */) : QObject(p), m_killed(3, 0), m_square(3, 0), m_size(0, 0)
+SgfGame::SgfGame(QObject *p/*=0*/, QSize size /* =QSize(19, 19) */, Rules rls/* = JapaneseRules */) : QObject(p), m_killed(3, 0), m_square(3, 0), m_rules(rls), m_size(0, 0)
 {
 	resize(size);
 	m_io = new QFile();
@@ -52,6 +52,8 @@ SgfGame::SgfGame(QObject *p, QSize size /* =QSize(19, 19) */) : QObject(p), m_ki
 	m_turn = cBlack;
 
 	m_viewStack.push_back( QList<SgfVariant>() << SgfVariant(SgfVariant(0, 0), SgfVariant(size.width()-1, size.height()-1)) );
+	connect(this, SIGNAL(currentNodeChanged(SgfTree*)), this, SIGNAL(boardChanged()));
+	connect(this, SIGNAL(boardChanged()), this, SIGNAL(nodeAttributesChanged()));
 }
 
 SgfGame::~SgfGame()
@@ -129,6 +131,7 @@ bool SgfGame::makeMove(qint8 col, qint8 row)
 		}
 	}
 	setCurrentMove(newNode);
+	emit boardChanged();
 
 	return true;
 }
@@ -223,34 +226,7 @@ bool SgfGame::isDead(qint8 col, qint8 row)
 
 int SgfGame::fillGroup(qint8 col, qint8 row, Color fillColor)
 {
-	int res = 0;
-	QQueue < Point > q;
-	QVector < QVector<qint8> > matrix;
-	Color color = m_board[row][col];
-
-	resizeMatrix(matrix, m_size, qint8(0));
-	matrix[row][col] = 1;
-	q.append(Point(col, row));
-
-	while (!q.isEmpty())
-	{
-		static QVector <Point> deltas = getUpDownLeftRight();
-
-		foreach (Point point, deltas)
-		{
-			point = q.first() + point;
-			if ( validatePoint(point) && !matrix[point.row][point.col] )
-			{
-				if (m_board[point.row][point.col] == color)
-					q.enqueue( point );
-				matrix[point.row][point.col] = 1;
-			}
-		}
-		m_board[q.first().row][q.first().col] = fillColor;
-		++res;
-		q.dequeue();
-	}
-	return res;
+	return dfsMatrix(m_board, Point(col, row), assignment<Color>(fillColor));
 }
 
 void SgfGame::stepForward(SgfTree *next)
@@ -278,8 +254,9 @@ void SgfGame::stepForward(SgfTree *next)
 			if (m_killStack.size() && m_killStack.last().first == m_current->moveIndex())
 				foreach (Stone killedStone, m_killStack.last().second)
 				{
+					Color scoredColor = invertColor(killedStone.color);
 					int square = fillGroup(killedStone.point.col, killedStone.point.row, cVoid);
-					m_killed[color] -= square;
+					m_killed[scoredColor] += square;
 				}
 		}
 
@@ -334,6 +311,7 @@ void SgfGame::stepForward(SgfTree *next)
 		m_viewStack.push_back(vals);
 	}
 
+	setTerritories(m_current);
 	setLabels(m_current);
 	setMarks(m_current);
 	setLines(m_current);
@@ -341,12 +319,12 @@ void SgfGame::stepForward(SgfTree *next)
 
 void SgfGame::stepBackward()
 {
-	Color killColor = cWhite;
+	Color color = cWhite;
 	SgfVariant val = m_current->attrValue("B");
 	if (val.type() != SgfVariant::tPoint)
 	{
 		val = m_current->attrValue("W");
-		killColor = cBlack;
+		color = cBlack;
 	}
 
 	if (val.type() == SgfVariant::tPoint)
@@ -358,8 +336,9 @@ void SgfGame::stepBackward()
 			{
 				foreach (Stone killedStone, m_killStack.last().second)
 			{
+				Color scoredColor = invertColor(killedStone.color);
 				int square = fillGroup(killedStone.point.col, killedStone.point.row, killedStone.color);
-				m_killed[killColor] -= square;
+				m_killed[scoredColor] -= square;
 			}
 			m_killStack.pop_back();
 			}
@@ -435,6 +414,7 @@ void SgfGame::stepBackward()
 	setMarks(m_current);
 	setLabels(m_current);
 	setLines(m_current);
+	setTerritories(m_current);
 }
 
 void SgfGame::setLabels(SgfTree *node)
@@ -488,6 +468,22 @@ void SgfGame::setView(QList<SgfVariant> regionList)
 	}
 }
 
+void SgfGame::setTerritories(SgfTree *node)
+{
+	m_square.fill(0, 3);
+	processMatrix(m_territory, assignment<Color>(cVoid));
+	foreach (Point p, node->terrBlack())
+	{
+		m_territory[p.row][p.col] = cBlack;
+		++m_square[cBlack];
+	}
+	foreach (Point p, node->terrWhite())
+	{
+		m_territory[p.row][p.col] = cWhite;
+		++m_square[cWhite];
+	}
+}
+
 bool SgfGame::setStone(Point p, Color color, bool force /* = false*/)
 {
 	return setStone(p.col, p.row, color, force);
@@ -535,6 +531,7 @@ bool SgfGame::addStone(qint8 col, qint8 row, Color color)
 		{
 			emit currentNodeChanged(m_current);
 		}
+		emit boardChanged();
 		return true;
 	}
 	else
@@ -613,6 +610,7 @@ bool SgfGame::setCurrentMove(SgfTree *newCurr)
 
 	m_current = newCurr;
 	emit currentNodeChanged(m_current);
+	emit boardChanged();
 	emit turnChanged(turn());
 	return true; // false if hasn't found
 }
@@ -621,6 +619,7 @@ void SgfGame::addMark(qint8 col, qint8 row, Markup m)
 {
 	m_current->setMark(Mark(m, Point(col, row)));
 	setMarks(m_current);
+	emit boardChanged();
 }
 
 void SgfGame::addLine(Line ln)
@@ -633,6 +632,7 @@ void SgfGame::addLine(Line ln)
 			m_current->setLine(ln.from, ln.to);
 		else
 			m_current->setArrow(ln.from, ln.to);
+		emit boardChanged();
 	}
 }
 
@@ -640,12 +640,14 @@ void SgfGame::removeLine(Point p)
 {
 	m_current->removeLine(p);
 	setLines(m_current);
+	emit boardChanged();
 }
 
 void SgfGame::addLabel(Label lbl)
 {
 	m_current->setLabel(lbl);
 	setLabels(m_current);
+	emit boardChanged();
 }
 
 QString SgfGame::labelAt(Point p)
@@ -662,6 +664,7 @@ void SgfGame::removeLabel(Point p)
 {
 	m_current->removeLabel(p);
 	setLabels(m_current);
+	emit boardChanged();
 }
 
 bool SgfGame::canMove(qint8 col, qint8 row)
@@ -1176,6 +1179,7 @@ void SgfGame::resize(QSize s)
 	m_size = s;
 	resizeMatrix(m_board, s, cVoid);
 	resizeMatrix(m_cellVisible, s, qint8(0x0));
+	resizeMatrix(m_territory, s, cVoid);
 }
 
 void SgfGame::emitError(Error errorcode)
@@ -1304,5 +1308,219 @@ void SgfGame::setTurn(Color turn)
 		if (m_current->turn() != m_turn && ! (m_current->parent() && m_current->parent()->turn() == invertColor(m_turn)) )
 			m_current->setTurn(turn);
 		emit turnChanged(turn);
+	}
+}
+
+void SgfGame::removeNode(SgfTree *nodeToDelete)
+{
+	if (nodeToDelete->moveIndex() <= m_current->moveIndex())
+	{
+		SgfTree *node = m_current;
+		bool ok = true;
+		while (node->parent() && nodeToDelete->moveIndex() <= node->moveIndex())
+		{
+			ok = ok && node != nodeToDelete;
+			node = node->parent();
+		}
+		if (!ok)
+			setCurrentMove(node);
+	}
+	if (nodeToDelete->parent()->removeChild(nodeToDelete))
+	{
+		emit nodeRemoved(nodeToDelete);
+		delete nodeToDelete;
+	}
+	emit boardChanged();
+	emit nodeAttributesChanged();
+}
+
+Color SgfGame::borderColors(Point p)
+{
+	QQueue < Point > q;
+	QVector < QVector<qint8> > w_matrix;
+	Color color = m_board[p.row][p.col];
+	Color returnColor(cVoid);
+
+	resizeMatrix(w_matrix, m_size, qint8(0));
+	w_matrix[p.row][p.col] = 1;
+	q.append(p);
+	while (!q.isEmpty())
+	{
+		static QVector <Point> deltas = getUpDownLeftRight();
+
+		foreach (Point point, deltas)
+		{
+			point = q.first() + point;
+			if ( validatePoint(point) )
+			{
+				if (!w_matrix[point.row][point.col])
+				{
+					if (m_board[point.row][point.col] == color)
+					{
+						q.enqueue( point );
+					}
+					else
+					{
+						returnColor = Color(returnColor | m_board[point.row][point.col]);
+					}
+					w_matrix[point.row][point.col] = 1;
+				}
+			}
+		}
+		q.dequeue();
+	}
+	return returnColor;
+}
+
+void SgfGame::markTerritory()
+{
+	QVector < QVector<qint8> > w_matrix;
+	resizeMatrix(w_matrix, m_size, qint8(0));
+
+	if (!(m_current->terrBlack().count() || m_current->terrWhite().count()))
+		m_current->clearTerritory();
+	for (int col=0; col<m_size.width(); ++col)
+	{
+		for (int row=0; row<m_size.height(); ++row)
+		{
+			if (!w_matrix[row][col])
+			{
+				if (!m_board[row][col])
+				{
+					Point p(col, row);
+					Color clr = borderColors(Point(col, row));
+					if (clr == cBlack || clr == cWhite)
+					{
+						// filling of m_territory
+						QQueue < Point > q;
+
+						processMatrix(w_matrix, assignment<qint8>(0));
+						w_matrix[p.row][p.col] = 1;
+						q.append(p);
+
+						while (!q.isEmpty())
+						{
+							static QVector <Point> deltas = getUpDownLeftRight();
+
+							foreach (Point point, deltas)
+							{
+								point = q.first() + point;
+								if ( validatePoint(point) && !w_matrix[point.row][point.col] )
+								{
+									if (m_board[point.row][point.col] == cVoid)
+										q.enqueue( point );
+									else if (m_rules == ChineseRules)
+									{
+										setTerritory(Stone(m_board[point.row][point.col], Point(point.col, point.row)));
+									}
+									w_matrix[point.row][point.col] = 1;
+								}
+							}
+							setTerritory(Stone(clr, q.first()));
+							q.dequeue();
+						}
+					}
+				}
+				else if (m_rules == ChineseRules)
+				{
+					setTerritory(Stone(m_board[row][col], Point(col, row)));
+				}
+				w_matrix[row][col] = 1;
+			}
+		}
+	}
+	emit boardChanged();
+	emit nodeAttributesChanged();
+}
+
+void SgfGame::markTerritory(Point p)
+{
+	if (validatePoint(p))
+	{
+		QVector < QVector<qint8> > w_matrix;
+		resizeMatrix(w_matrix, m_size, qint8(0));
+		Color terrOwner = invertColor(m_board[p.row][p.col]);
+		if (!terrOwner)
+		{
+			terrOwner = borderColors(p);
+			if ((!terrOwner) || terrOwner == cBoth)
+				return;
+		}
+
+		QQueue < Point > q;
+
+		processMatrix(w_matrix, assignment<qint8>(0));
+		w_matrix[p.row][p.col] = 1;
+		q.append(p);
+
+		while (!q.isEmpty())
+		{
+			static QVector <Point> deltas = getUpDownLeftRight();
+
+			foreach (Point point, deltas)
+			{
+				point = q.first() + point;
+				if ( validatePoint(point) && !w_matrix[point.row][point.col] )
+				{
+					if (m_board[point.row][point.col] == cVoid ||
+						m_board[point.row][point.col] == m_board[p.row][p.col])
+						q.enqueue( point );
+					w_matrix[point.row][point.col] = 1;
+				}
+			}
+			setTerritory(Stone(terrOwner, q.first()));
+			q.dequeue();
+		}
+		// due to bug in setTerritory
+		setTerritories(m_current);
+		emit boardChanged();
+		emit nodeAttributesChanged();
+	}
+}
+
+void SgfGame::setTerritory(Stone s)
+{
+	if (m_territory[s.point.row][s.point.col])
+		--m_square[ m_territory[s.point.row][s.point.col] ];
+	m_territory[s.point.row][s.point.col] = s.color;
+	// buggy overwiriting
+	m_current->setTerritory(s);
+	++m_square[ s.color ];
+}
+
+void SgfGame::unmarkTerritory(Point p)
+{
+	if (validatePoint(p) && m_territory[p.row][p.col])
+	{
+		QQueue < Point > q;
+		QVector < QVector<qint8> > w_matrix;
+		Color clr = m_territory[p.row][p.col];
+
+		resizeMatrix(w_matrix, m_size, qint8(0));
+		w_matrix[p.row][p.col] = 1;
+		q.append(p);
+
+		while (!q.isEmpty())
+		{
+			static QVector <Point> deltas = getUpDownLeftRight();
+
+			foreach (Point point, deltas)
+			{
+				point = q.first() + point;
+				if ( validatePoint(point) && !w_matrix[point.row][point.col] )
+				{
+					if (m_territory[point.row][point.col] == clr)
+						q.enqueue( point );
+					w_matrix[point.row][point.col] = 1;
+				}
+			}
+			setTerritory(Stone(cVoid, q.first()));
+			q.dequeue();
+		}
+		// due to bug in setTerritory
+		// todo - dfs for unmarking territory from black
+		setTerritories(m_current);
+		emit boardChanged();
+		emit nodeAttributesChanged();
 	}
 }

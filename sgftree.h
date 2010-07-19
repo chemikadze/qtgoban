@@ -10,15 +10,32 @@
 
 class SgfTree
 {
+public:
+	enum NodeAnnot { naNone = 0x0,
+				 GoodForBlack, // GB
+				 GoodForWhite, // GW
+				 Even,		   // DM
+				 Unclear		// UC
+			 };
+	enum MoveAnnot {
+				maNone,
+				Bad, // BM
+				Doubtful, // DO
+				Interesting, // IT
+				Tesuji // TE
+	};
+
+private:
 	quint16 m_moveIndex;	// MN
 	QVector <SgfTree*> m_children;
 	SgfTree *m_parent;
 	QMultiHash <QString, SgfVariant> m_attr;
-	Annotation m_annot;	// DB GB GW
 
 // start new
 //	Stone m_move;
 #ifdef FULL_MVC
+	NodeAnnot m_annot;	// DM UC GB GW
+
 	QList <Point> m_terrBlack;
 	QList <Point> m_terrWhite;
 
@@ -54,6 +71,13 @@ public:
 #ifdef FULL_MVC
 	inline void setAnnotation(Annotation annot) { m_annot = annot; }
 	inline Annotation annotation() { return m_annot; }
+#else
+	void setNodeAnnot(NodeAnnot annot); // TODO
+	NodeAnnot nodeAnnot();
+	void setMoveAnnot(MoveAnnot annot); // TODO
+	MoveAnnot moveAnnot();
+	inline bool hotspot() { return m_attr.contains("HO"); }
+	inline double value() { return  m_attr.value("V").toReal(); }
 #endif
 
 	Stone move();
@@ -64,7 +88,7 @@ public:
 	inline QString moveName() { return attrValue("N").toString(); }
 
 	void addChild(SgfTree *child);
-	void removeChild(SgfTree *child);
+	bool removeChild(SgfTree *child);
 	inline SgfTree* parent() { return m_parent; }
 	inline void setParent(SgfTree* newParent) { m_parent = newParent; }
 	inline QVector <SgfTree*> children()const { return m_children; }
@@ -90,6 +114,8 @@ public:
 	inline void addTerrWhite(Point s) { m_attr.insert("TW", s); }
 	inline void removeTerrWhite(Point s) { m_attr.remove("TW", s); }
 	inline void removeTerrBlack(Point s) { m_attr.remove("TB", s); }
+	void setTerritory(Stone s);
+	inline void clearTerritory() { m_attr.remove("TB"); m_attr.remove("TW"); }
 
 	void setStone(Stone s);
 

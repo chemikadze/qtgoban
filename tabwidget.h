@@ -7,6 +7,7 @@
 #include "board.h"
 #include "gametree.h"
 #include "commentview.h"
+#include "moveattributewidget.h"
 
 class TabWidget : public QWidget
 {
@@ -15,6 +16,7 @@ class TabWidget : public QWidget
 	Board *m_board;
 	GameTree *m_tree;
 	CommentView *m_commentView;
+	MoveAttributeWidget *m_moveAttr;
 	QString m_filename;
 	bool m_changed;
 
@@ -27,7 +29,7 @@ public:
 	bool saveFile(const QString& s = QString());
 	inline bool changed()const { return m_changed; }
 
-	TabWidget(QWidget *parent = 0, QSize size = QSize(19, 19));
+	TabWidget(QWidget *parent = 0, QSize size = QSize(19, 19), SgfGame::Rules rules = SgfGame::JapaneseRules);
 	~TabWidget();
 
 signals:

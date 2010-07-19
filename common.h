@@ -16,13 +16,6 @@ enum Markup { mVoid = 0x0,
 			mTriangle,
 			mSelection
 };
-enum Annotation {
-			maNone = 0x0,
-			maGoodForBlack,
-			maGoodForWhite,
-			maEven,				// DM
-			maUnclear			// UC
-};
 
 enum LineStyle {
 	lsLine = 0x1,

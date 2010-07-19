@@ -31,6 +31,7 @@ public:
 	enum Error { ENo, EBadAttrName, EBadSyntax, EWrongGM, EUnknownEncoding, EInvalidPoint, EBadAttrValue };
 	enum MoveError {MENo, MESuicide, MEKo};
 	enum CellMark { CMNone = 0x0, CMDimm = 0x1, CMInvisible = 0x2 };
+	enum Rules { JapaneseRules, ChineseRules };
 
 protected:
 	QVector <int> m_killed; // killed (dead) stones count
@@ -40,6 +41,7 @@ protected:
 	QVector <QList <SgfVariant> > m_viewStack;
 	QVector <QPair <qint16, QSet<Stone> > > m_rewriteStack;
 	QVector <QPair <qint16, QSet<Stone> > > m_killStack;
+	QVector <QVector <Color> > m_territory;
 	QList <Mark> m_marks;
 	SgfTree *m_tree;
 	SgfTree *m_current;
@@ -50,6 +52,7 @@ protected:
 	bool writeNode(SgfTree *node);
 	Error m_error;
 	Color m_turn;
+	Rules m_rules;
 
 	// TODO: will be deleted when will be used fill MVC
 	QVector <Line> m_lines;
@@ -101,13 +104,15 @@ signals:
 	void wrongValue(QString attrName, QString dataString);
 	void errorOccured(Error errorcode);
 	void errorOccured(QString s);
-	void newNode(SgfTree* newCurr);
+	void nodeRemoved(SgfTree* newCurr);
 	void currentNodeChanged(SgfTree* current);
 	//void message(QString);
+	void boardChanged();
 	void moveErrorOccured(MoveError errcode);
 	void moveErrorOccured(QString s);
 	void gameTreeChanged(SgfTree* root);
 	void turnChanged(Color turn);
+	void nodeAttributesChanged();
 
 public slots:
 	void setTurn(Color turn);
@@ -116,6 +121,7 @@ public:
 //	Board API
 
 // stones
+	bool rules();
 	bool makeMove(qint8 col, qint8 row);
 	bool canMove(qint8 col, qint8 row);
 	bool addStone(qint8 col, qint8 row, Color color);
@@ -135,6 +141,20 @@ public:
 	inline QVector<Label> labels() { return m_labels; }
 	QString labelAt(Point p);
 	void removeLabel(Point p);
+
+// scoring
+	void markTerritory();
+	void markTerritory(Point p);
+	void unmarkTerritory(Point p);
+	int score(Color c) { return killed(c)+square(c); }
+	int killed(Color c) { return m_killed.at(c); }
+	int square(Color c) { return m_square.at(c); }
+	void setTerritory(Stone s);
+	QList <Point> terrBlack() { return m_current->terrBlack(); };
+	QList <Point> terrWhite() { return m_current->terrWhite(); };
+	QVector <QVector <Color> > territory() { return m_territory; }
+	Color borderColors(Point pnt);
+	void setTerritories(SgfTree *node);
 
 // setticg current position
 	bool setCurrentMove(SgfTree* newCurr);
@@ -160,6 +180,7 @@ public:
 	void resize(QSize s);
 	void resize(qint8 col, qint8 row = -1);
 	void setEncoding(QString encoding);
+	void removeNode(SgfTree *node);
 
 //	node comments
 	void setRootAttr(const QString& attr, const SgfVariant& data);
@@ -176,7 +197,7 @@ public:
 	QFile::FileError saveToFile(const QString& filename);
 	SgfVariant strToAttrValue(const QString& attr, const QString& data);
 
-	SgfGame(QObject *p = 0, QSize size = QSize(19, 19));
+	SgfGame(QObject *p = 0, QSize size = QSize(19, 19), Rules rls = JapaneseRules);
 	~SgfGame();
 };
 

@@ -14,6 +14,10 @@ NewGameDialog::NewGameDialog(QWidget *parent) :
 	m_width->lineEdit()->setValidator(new QIntValidator(1, 52, m_width->lineEdit()));
 	m_height->lineEdit()->setValidator(m_width->validator());
 
+	m_rules = new QComboBox(this);
+	m_rules->addItem(tr("Japanese rules"), int(SgfGame::JapaneseRules));
+	m_rules->addItem(tr("Chinese rules"), int(SgfGame::ChineseRules));
+
 	m_bbox = new QDialogButtonBox(Qt::Horizontal, this);
 	connect(m_bbox->addButton(QDialogButtonBox::Ok),
 			SIGNAL(clicked()),
@@ -30,7 +34,9 @@ NewGameDialog::NewGameDialog(QWidget *parent) :
 	fla->addWidget(new QLabel(tr("Height"), this), 0, 1);
 	fla->addWidget(m_width, 1, 0);
 	fla->addWidget(m_height, 1, 1);
+	fla->addWidget(m_rules, 2, 0, 1, 2);
 	frame->setLayout(fla);
+
 
 	QVBoxLayout *la = new QVBoxLayout(this);
 	la->addWidget(frame);
@@ -41,6 +47,11 @@ QSize NewGameDialog::boardSize()
 {
 	return QSize(m_width->currentText().toInt(),
 				 m_height->currentText().toInt());
+}
+
+SgfGame::Rules NewGameDialog::rules()
+{
+	return SgfGame::Rules(m_rules->itemData(m_rules->currentIndex(), Qt::UserRole).toInt());
 }
 
 

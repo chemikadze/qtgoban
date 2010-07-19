@@ -14,7 +14,9 @@ public:
 						 EditMode,
 						 MarkMode,
 						 LineMode,
-						 LabelMode };
+						 LabelMode,
+						 TerritoryMode
+					};
 
 protected:
 	BoardEditMode m_editMode;

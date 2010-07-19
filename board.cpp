@@ -79,9 +79,9 @@ void Board::paintEvent(QPaintEvent* )
 
 	drawBoard(p);
 	drawStones(p);
+	drawTerritory(p);
 	drawMarkup(p);
 	drawLabels(p);
-	drawTerritory(p);
 	drawMoveNames(p);
 
 	// draw lines
@@ -277,24 +277,24 @@ void Board::drawMark(QPainter &p, Point pnt, Markup mark)
 
 void Board::drawTerritory(QPainter &p)
 {
+	double markSize = 3;
+	p.setRenderHint(QPainter::Antialiasing, true);
 	foreach (Point pnt, m_game->currentMove()->terrBlack())
 	{
 		QPointF point = stoneToPoint(pnt);
-		p.setRenderHint(QPainter::Antialiasing, false);
-		p.setPen( Qt::black );
+		p.setPen( Qt::gray );
 		p.setBrush( Qt::black );
-		p.drawRect( QRectF(point-QPointF(2.5, 2.5),
-						  point+QPointF(2.5, 2.5)) );
+		p.drawRect( QRectF(point-QPointF(markSize, markSize),
+						   point+QPointF(markSize, markSize)) );
 	}
 
 	foreach (Point pnt, m_game->currentMove()->terrWhite())
 	{
 		QPointF point = stoneToPoint(pnt);
-		p.setRenderHint(QPainter::Antialiasing, false);
 		p.setPen( Qt::black );
 		p.setBrush( Qt::white );
-		p.drawRect( QRectF(point-QPointF(2.5, 2.5),
-						  point+QPointF(2.5, 2.5)) );
+		p.drawRect( QRectF(point-QPointF(markSize, markSize),
+						   point+QPointF(markSize, markSize)) );
 	}
 }
 
@@ -425,6 +425,8 @@ void Board::mouseReleaseEvent(QMouseEvent* e)
 				m_game->addLabel(Label(lbl, Point(col, row)));
 			break;
 		}
+		case TerritoryMode:
+			m_game->markTerritory(Point(col,row));
 		default:
 			break;
 		}
@@ -449,6 +451,8 @@ void Board::mouseReleaseEvent(QMouseEvent* e)
 		case LabelMode:
 			m_game->removeLabel(Point(col, row));
 			break;
+		case TerritoryMode:
+			m_game->unmarkTerritory(Point(col,row));
 		default:
 			break;
 		}
@@ -463,6 +467,7 @@ void Board::setGame(SgfGame *game)
 	resizeMatrix(tips, m_game->size(), QString());
 	connect(game, SIGNAL(currentNodeChanged(SgfTree*)), this, SLOT(repaint()));
 	connect(game, SIGNAL(moveErrorOccured(QString)), this, SLOT(showMoveError(QString)));
+	connect(game, SIGNAL(boardChanged()), this, SLOT(repaint()));
 	update();
 }
 

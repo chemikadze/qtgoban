@@ -112,7 +112,9 @@ MainWindow::MainWindow(QWidget *parent) :
 	agEditMode->addAction(actMarkMode);
 	agEditMode->addAction(actLineMode);
 	actLabelMode = agEditMode->addAction(tr("Label"));
+	actTerritoryMode = agEditMode->addAction(tr("Territory"));
 	toolEdit->addAction(actLabelMode);
+	toolEdit->addAction(actTerritoryMode);
 
 	actMoveMode->setText(tr("Moves"));
 	foreach (QAction *a, agMove->actions())
@@ -191,8 +193,6 @@ void MainWindow::retranslateUi()
 	actLine->setText(tr("Line"));
 	actArrow->setText(tr("Arrow"));
 
-
-
 	actAbout->setText(tr("About..."));
 	actAboutQt->setText(tr("About Qt..."));
 
@@ -204,6 +204,7 @@ void MainWindow::retranslateUi()
 	actLineMode->setText(tr("Line editing"));
 	actMarkMode->setText(tr("Mark editing"));
 	actLabelMode->setText(tr("Label"));
+	actTerritoryMode->setText(tr("Territory"));
 }
 
 void MainWindow::changeEvent(QEvent *e)
@@ -219,9 +220,10 @@ void MainWindow::newTab()
 	NewGameDialog *dia = new NewGameDialog(this);
 	if (dia->exec() == QDialog::Accepted)
 	{
-		TabWidget *newTab = createTab(dia->boardSize());
+		TabWidget *newTab = createTab(dia->boardSize(), dia->rules());
 		tabWidget->addTab( qobject_cast<QWidget*>(newTab), newTab->windowTitle());
 	}
+	delete dia;
 }
 
 void MainWindow::openFile()
@@ -464,10 +466,10 @@ void MainWindow::setLineStyle(LineStyle s)
 	activeMode->setChecked(true);
 }
 
-TabWidget* MainWindow::createTab(QSize s)
+TabWidget* MainWindow::createTab(QSize s, SgfGame::Rules rules)
 {
 	TabWidget *res;
-	res = new TabWidget(tabWidget, s);
+	res = new TabWidget(tabWidget, s, rules);
 	connect(res->game(), SIGNAL(turnChanged(Color)), this, SLOT(setTurnFromGame(Color)));
 	return res;
 }
@@ -571,6 +573,12 @@ void MainWindow::setEditMode(QAction *a)
 	else if (a == actLabelMode)
 	{
 		activeTab()->board()->setEditMode(AbstractBoard::LabelMode);
+	}
+	else if (a == actTerritoryMode)
+	{
+		activeTab()->board()->setEditMode(AbstractBoard::TerritoryMode);
+		if (!(activeTab()->board()->game()->terrBlack().size() || activeTab()->board()->game()->terrWhite().size()))
+			activeTab()->board()->game()->markTerritory();
 	}
 	else
 		qWarning() << "Unknown action in MainWindow::setEditMode()";

@@ -27,6 +27,7 @@ Q_OBJECT
 	QAction *actMarkMode;
 	QAction *actLineMode;
 	QAction *actLabelMode;
+	QAction *actTerritoryMode;
 
 	ChooseToolButton *tbMove;
 	QActionGroup *agMove;
@@ -61,7 +62,7 @@ Q_OBJECT
 
 	void retranslateUi();
 	virtual void changeEvent(QEvent *);
-	TabWidget* createTab(QSize s = QSize(19, 19));
+	TabWidget* createTab(QSize s = QSize(19, 19), SgfGame::Rules rules = SgfGame::JapaneseRules);
 	void setTurn(Color color);
 	void setEditColor(Color color);
 	void setMarkup(Markup m);

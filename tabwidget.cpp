@@ -3,20 +3,20 @@
 #include <QSplitter>
 #include "tabwidget.h"
 
-TabWidget::TabWidget(QWidget *parent, QSize size) :
+TabWidget::TabWidget(QWidget *parent, QSize size, SgfGame::Rules rules) :
     QWidget(parent)
 {
 	QSplitter *vsplit, *hsplit;
 	vsplit = new QSplitter(Qt::Vertical, this);
 
-	m_game = new SgfGame(this, size);
+	m_game = new SgfGame(this, size, rules);
 	m_board = new Board(this, m_game);
-
 	m_tree = new GameTree(this, m_game);
 	m_commentView = new CommentView(this, m_game);
+	m_moveAttr = new MoveAttributeWidget(this, m_game);
 
 	vsplit->addWidget(m_commentView);
-	vsplit->addWidget(new QPlainTextEdit("Here will be move option widget", this));
+	vsplit->addWidget(m_moveAttr);
 	vsplit->addWidget(m_tree);
 
 	hsplit = new QSplitter(Qt::Horizontal, this);
@@ -30,6 +30,8 @@ TabWidget::TabWidget(QWidget *parent, QSize size) :
 	setLayout(la);
 
 	setWindowTitle("noname.sgf");
+
+	m_changed = true;
 
 	resize(700, 400);
 }

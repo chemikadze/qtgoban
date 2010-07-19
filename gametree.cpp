@@ -230,16 +230,30 @@ void GameTree::mousePressEvent(QMouseEvent *e)
 
 	if ( col < m_layers.count() && m_layers[col].contains(row) )
 	{
+		if (e->button() == Qt::LeftButton)
+		{
 #ifdef DEBUG
-		qDebug("Selected: %ld %ld", col, row);
+			qDebug("Selected: %ld %ld", col, row);
 #endif
-		m_currCol = col;
-		m_currRow = row;
-		SgfTree* oldNode = m_currNode->sgfNode;
-		m_currNode = m_layers[col].value(row);
-		viewport()->repaint();
-		emit nodeSelected(m_currNode->sgfNode, oldNode);
-		m_game->setCurrentMove(m_currNode->sgfNode);
+			m_currCol = col;
+			m_currRow = row;
+			SgfTree* oldNode = m_currNode->sgfNode;
+			m_currNode = m_layers[col].value(row);
+			viewport()->repaint();
+			emit nodeSelected(m_currNode->sgfNode, oldNode);
+			m_game->setCurrentMove(m_currNode->sgfNode);
+		}
+		else
+		{
+			m_nodeToDelete = m_layers[col].value(row);
+			if (m_nodeToDelete != m_tree)
+			{
+				QMenu *deleteMenu = new QMenu(this);
+				deleteMenu->addAction(QIcon::fromTheme("edit-delete"), tr("Delete branch"), this, SLOT(deleteNode()));
+				connect(deleteMenu, SIGNAL(aboutToHide()), deleteMenu, SLOT(deleteLater()));
+				deleteMenu->popup(e->globalPos());
+			}
+		}
 	}
 }
 
@@ -353,8 +367,20 @@ void GameTree::keyPressEvent(QKeyEvent *e)
 
 void GameTree::rebuildTree()
 {
-	m_layers.clear();
 	setGame(m_game);
+}
+
+void GameTree::deleteNode()
+{
+	if (m_nodeToDelete->parent)
+	{
+		m_nodeToDelete->parent->children.remove( m_nodeToDelete->parent->children.indexOf(m_nodeToDelete) );
+	}
+	m_game->removeNode(m_nodeToDelete->sgfNode);
+	delete m_nodeToDelete;
+	rebuildTree();
+	setCurrentNode(m_game->currentMove());
+	update();
 }
 
 Node::Node()

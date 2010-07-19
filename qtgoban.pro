@@ -11,7 +11,8 @@ HEADERS += sgftree.h \
     mainwindow.h \
     tabwidget.h \
     newgamedialog.h \
-    choosetoolbutton.h
+    choosetoolbutton.h \
+    moveattributewidget.h
 SOURCES += sgftree.cpp \
     sgfgame.cpp \
     sgfvariant.cpp \
@@ -25,7 +26,8 @@ SOURCES += sgftree.cpp \
     mainwindow.cpp \
     tabwidget.cpp \
     newgamedialog.cpp \
-    choosetoolbutton.cpp
+    choosetoolbutton.cpp \
+    moveattributewidget.cpp
 OTHER_FILES += output.sgf \
     input.sgf
 OBJECTS_DIR = ./obj

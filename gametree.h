@@ -5,6 +5,8 @@
 #include <QtCore/QMap>
 #include <QtCore/QVector>
 #include <QtCore/QLinkedList>
+#include <QtGui/QMenu>
+#include <QtGui/QAction>
 #include "sgfgame.h"
 
 class Node
@@ -36,11 +38,13 @@ class GameTree : public QAbstractScrollArea
 
 	long m_currCol, m_currRow;
 	Node* m_currNode;
+	Node* m_nodeToDelete;
 
 protected slots:
 	void setCurrentNode(SgfTree*);
 	void addNewNode(SgfTree*);
 	void rebuildTree();
+	void deleteNode();
 
 protected:
 	void mousePressEvent(QMouseEvent *);
